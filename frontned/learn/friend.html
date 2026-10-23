@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Help a friend · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>.app { height: 100vh; height: 100dvh; min-height: 0; }</style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+  <script src="../assets/js/chat.js"></script>
+</head>
+<body>
+  <main class="app app--plain">
+    <div class="topbar">
+      <div class="topbar__left">
+        <a class="icon-btn" href="index.html" aria-label="Back" data-icon="back"></a>
+        <div>
+          <h1 class="title" style="font-size:22px">Help a friend</h1>
+          <div class="small" style="color:var(--green);font-weight:700;display:flex;align-items:center;gap:6px"><span class="dot" style="background:var(--green);width:7px;height:7px"></span>Live · answers just for you</div>
+        </div>
+      </div>
+      <button class="icon-btn" data-quick-exit></button>
+    </div>
+
+    <div class="chat" id="chat" aria-live="polite"></div>
+    <div class="quick" id="quick" style="margin-bottom:12px"></div>
+    <form class="composer" id="composer" autocomplete="off">
+      <label class="search"><span class="sr-only">Your question</span><input id="input" placeholder="Ask anything…"></label>
+      <button class="send-btn" aria-label="Send" data-icon="send" data-stroke="2.2"></button>
+    </form>
+  </main>
+
+  <script>
+    const STARTERS = [
+      'My friend told me her partner hits her. What do I say?',
+      'Should I call the police for her?',
+      'How do I help without making it worse?',
+      'What if she goes back to him?',
+    ];
+    // Offline answers, several versions each so replies don't feel copy-pasted.
+    const ANSWERS = [
+      { match: /what do i say|told me|opened up|say to her/, replies: [
+        'Start by believing her. Something like "I believe you, and it\'s not your fault" matters a lot. Listen more than you talk, and don\'t push her to leave; she knows her situation best. Ask what would help her right now.',
+        'Thank her for trusting you, and tell her it isn\'t her fault. Try not to criticise her partner too hard, as that can make her defend him. Ask "How can I support you?" and let her lead.',
+      ] },
+      { match: /police|report|case/, replies: [
+        'Unless someone is in immediate danger, it\'s best to let her decide. Reporting without her can put her at more risk. If she\'s in danger right now, call 10111. Otherwise, let her know she can open a case or get a free protection order at the magistrate\'s court, and offer to go with her.',
+        'If you think she\'s in danger this minute, call SAPS on 10111. If not, talk to her first. She can apply for a protection order at the magistrate\'s court for free, and having a friend come along can make it easier.',
+      ] },
+      { match: /worse|safe|careful|without/, replies: [
+        'Talk when she\'s alone and her phone isn\'t being watched. Don\'t confront her partner. Help her think about a safety plan: a code word between you, a bag with her ID and some money, and a place she can go. Share the GBV Command Centre number, 0800 428 428.',
+        'Keep your messages private, since he may check her phone. Agree on a code word she can text you if she needs help. Avoid ultimatums like "leave or I\'m done". Staying close matters more.',
+      ] },
+      { match: /goes back|went back|return|stay(s|ing)? with/, replies: [
+        'That\'s really common. Leaving can take several tries because of fear, money, kids or love. Stay in her life without judging, and keep the door open. Your friendship may be what helps her leave safely when she\'s ready.',
+        'Try not to take it personally or give up on her. People often go back because leaving feels unsafe or unaffordable. Remind her you\'re there and that support like the Lerato Survivor Fund exists.',
+      ] },
+    ];
+    const GENERAL = [
+      'Good question. The most helpful things are believing her, not judging, respecting her choices and helping her stay safe. If she wants professional support, the GBV Command Centre is free on 0800 428 428, 24/7.',
+      'Every situation is different, so follow her lead. Listen, keep what she tells you private, and offer practical help like a lift or a place to stay. For expert advice, call 0800 428 428 any time.',
+    ];
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    Chat.create({
+      endpoint: '/ai/friend/',
+      opening: { q: "Hi! I'm here to help you support someone you care about. Ask me anything, or pick a question below.", options: STARTERS },
+      scripted(answers, text) {
+        const t = text.toLowerCase();
+        const hit = ANSWERS.find((a) => a.match.test(t));
+        const used = STARTERS.filter((s) => !answers.includes(s));
+        return { reply: hit ? pick(hit.replies) : pick(GENERAL), options: used.slice(0, 2) };
+      },
+    });
+  </script>
+</body>
+</html>

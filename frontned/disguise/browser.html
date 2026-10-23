@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Search</title>
+  <meta name="theme-color" content="#F6F7F9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Internet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #F6F7F9; color: #111; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    .wrap { max-width: 430px; min-height: 100vh; margin: 0 auto; padding: 120px 18px 24px; }
+    h1 { text-align: center; font-size: 34px; font-weight: 800; color: #2F5FC4; margin: 0 0 22px; }
+    form { display: flex; gap: 8px; }
+    form input { flex: 1; min-width: 0; height: 52px; border-radius: 26px; border: 1px solid #DADCE0; background: #fff; padding: 0 20px; font-size: 15px; outline: none; }
+    form button { width: 52px; height: 52px; border-radius: 50%; border: 0; background: #2F5FC4; color: #fff; display: flex; align-items: center; justify-content: center; }
+    .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 34px; }
+    .tiles a { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: #3C4043; text-decoration: none; }
+    .tiles span { width: 56px; height: 56px; border-radius: 16px; background: #fff; border: 1px solid #E3E5E8; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>if (!LA.user()) location.replace(LA.url('index.html'));</script>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Search</h1>
+    <form id="form" autocomplete="off" role="search">
+      <label style="flex:1;display:flex"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search or type web address</span><input id="q" type="search" placeholder="Search or type web address"></label>
+      <button aria-label="Search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
+    </form>
+    <div class="tiles">
+      <a href="https://www.google.com/search?q=news"><span style="color:#C2502F">N</span>News</a>
+      <a href="https://www.google.com/search?q=weather"><span style="color:#2F5FC4">W</span>Weather</a>
+      <a href="https://www.google.com/search?q=easy+recipes"><span style="color:#2F7D4E">R</span>Recipes</a>
+      <a href="https://www.google.com/search?q=sport+scores"><span style="color:#9A6A10">S</span>Sport</a>
+    </div>
+  </main>
+  <script>
+    document.getElementById('form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const q = document.getElementById('q').value.trim();
+      if (!q) return;
+      if (q.toLowerCase() === String(LA.disguise().secret).trim().toLowerCase()) { LA.enterApp(); return; }
+      // Anything else behaves like a real search, keeping the disguise believable.
+      location.href = 'https://www.google.com/search?q=' + encodeURIComponent(q);
+    });
+  </script>
+</body>
+</html>

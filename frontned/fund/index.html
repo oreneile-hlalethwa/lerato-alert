@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Survivor Fund · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+</head>
+<body data-tab="fund">
+  <main class="app">
+    <div class="topbar">
+      <h1 class="title" style="margin:0">Survivor Fund</h1>
+      <button class="icon-btn" data-quick-exit></button>
+    </div>
+    <p class="muted" style="margin:6px 0 18px;font-size:15px">Money to leave safely. Private and discreet.</p>
+
+    <section class="card card--dark stack">
+      <div>
+        <div class="muted small" style="font-size:14px">Need to get out?</div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-0.01em">Apply for emergency support</div>
+      </div>
+      <button class="btn" id="applyBtn" style="height:50px">Apply now</button>
+    </section>
+
+    <div class="section-head"><h2>What it covers</h2></div>
+    <div class="grid-3">
+      <div class="action-tile"><span class="tile tile--coral"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="14" rx="2"/><path d="M5 11h14M8 21v-4M16 21v-4"/></svg></span>Transport</div>
+      <div class="action-tile"><span class="tile tile--blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg></span>Shelter</div>
+      <div class="action-tile"><span class="tile tile--amber"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.5 12h-11z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg></span>Essentials</div>
+    </div>
+
+    <div class="section-head"><h2>Your application</h2></div>
+    <div class="list" id="status"></div>
+
+    <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between" class="small muted">
+      <span style="display:inline-flex;align-items:center;gap:6px" data-icon="lock" data-size="14" data-stroke="2.2">Secured by PayFast</span>
+      <a href="transparency.html" style="font-weight:700;color:var(--ink)">Where money goes</a>
+    </div>
+    <a href="sponsor.html" class="btn btn--outline" style="margin-top:14px;height:52px">Sponsor the fund</a>
+  </main>
+
+  <div class="overlay hidden" id="applySheet" role="dialog" aria-modal="true" aria-labelledby="applyTitle">
+    <form class="sheet" id="applyForm" novalidate>
+      <h2 id="applyTitle">Emergency support</h2>
+      <p class="small muted" style="margin:-6px 0 0">A case worker checks every request. Nothing is shared with anyone else.</p>
+      <div class="field">What do you need?
+        <div class="chips" id="needs">
+          <button type="button" class="chip is-on" data-need="Transport">Transport</button>
+          <button type="button" class="chip" data-need="Shelter">Shelter</button>
+          <button type="button" class="chip" data-need="Essentials">Essentials</button>
+          <button type="button" class="chip" data-need="Legal">Legal</button>
+        </div>
+      </div>
+      <label class="field">Amount needed (R) <input class="input" name="amount" type="number" min="50" max="5000" step="10" placeholder="e.g. 400" required></label>
+      <label class="field">Safe number for payout <input class="input" name="phone" type="tel" placeholder="A number only you control" required></label>
+      <p class="field-error hidden" id="applyError" role="alert"></p>
+      <div style="display:flex;gap:10px"><button type="button" class="btn btn--ghost grow" id="applyCancel">Cancel</button><button class="btn grow">Send request</button></div>
+    </form>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const needs = new Set(['Transport']);
+
+    function renderStatus() {
+      const app = LA.store.get('fund_application', null);
+      const done = '<span class="check">' + LA.icon('check', 16, 3) + '</span>';
+      if (!app) {
+        $('status').innerHTML = '<div class="list--empty">No request yet. If you need money to leave safely, apply above.</div>';
+        return;
+      }
+      $('status').innerHTML =
+        '<div class="row"><div class="row__body"><div class="row__title">Request sent</div><div class="row__sub">R' + app.amount + ' · ' + LA.escapeHtml(app.needs.join(', ')) + '</div></div>' + done + '</div>' +
+        '<div class="row"><div class="row__body"><div class="row__title">Case worker review</div><div class="row__sub">Usually within 24 hours</div></div><span class="pill pill--coral">In review</span></div>' +
+        '<div class="row"><div class="row__body"><div class="row__title">Payout</div><div class="row__sub">To a number only you control</div></div><span class="pill pill--amber">Up next</span></div>';
+    }
+
+    document.querySelectorAll('[data-need]').forEach((b) => b.addEventListener('click', () => {
+      const n = b.dataset.need;
+      if (needs.has(n)) needs.delete(n); else needs.add(n);
+      b.classList.toggle('is-on', needs.has(n));
+    }));
+    $('applyBtn').addEventListener('click', () => $('applySheet').classList.remove('hidden'));
+    $('applyCancel').addEventListener('click', () => $('applySheet').classList.add('hidden'));
+
+    $('applyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target.elements;
+      const err = $('applyError');
+      const amount = Number(f.amount.value);
+      const phone = f.phone.value.replace(/\s+/g, '');
+      err.classList.add('hidden');
+      const bad = (m) => { err.textContent = m; err.classList.remove('hidden'); };
+      if (!needs.size) return bad('Choose at least one need.');
+      if (!amount || amount < 50 || amount > 5000) return bad('Enter an amount between R50 and R5 000.');
+      if (!/^(\+27|0)\d{9}$/.test(phone)) return bad('Enter a valid SA number.');
+      const application = { needs: Array.from(needs), amount, phone, created: new Date().toISOString() };
+      await LA.apiOr('/fund/apply/', { body: Object.assign({ user_id: (LA.user() || {}).id }, application) }, null);
+      LA.store.set('fund_application', application);
+      $('applySheet').classList.add('hidden');
+      renderStatus();
+      LA.toast('Request sent. A case worker will review it.');
+    });
+
+    renderStatus();
+  </script>
+</body>
+</html>

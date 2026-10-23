@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sponsor the fund · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .bankcard { margin-top: 18px; height: 180px; border-radius: 22px; background: var(--ink); color: #fff; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+    .bankcard::after { content: ''; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: var(--coral); opacity: .85; }
+    .bankcard > * { position: relative; z-index: 1; }
+    .bankcard__row { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: #E5E5E5; }
+    .bankcard__num { font-size: 20px; letter-spacing: .14em; font-weight: 600; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+</head>
+<body>
+  <main class="app app--plain">
+    <div class="topbar">
+      <div class="topbar__left">
+        <a class="icon-btn" href="index.html" aria-label="Back" data-icon="back"></a>
+        <h1 class="title" style="font-size:24px">Sponsor the fund</h1>
+      </div>
+      <span class="pill pill--amber">DEMO</span>
+    </div>
+
+    <div class="bankcard" aria-hidden="true">
+      <div class="bankcard__row"><span>FNB · Debit</span><span>Lerato</span></div>
+      <div class="bankcard__num" id="cardNum">•••• •••• •••• ••••</div>
+      <div class="bankcard__row" style="font-weight:500"><span id="cardName">YOUR NAME</span><span id="cardExp">MM/YY</span></div>
+    </div>
+
+    <!-- Step 1: add card -->
+    <form class="card stack" id="cardForm" style="margin-top:16px" novalidate>
+      <label class="field">Name on card <input class="input" name="holder" autocomplete="cc-name" required></label>
+      <label class="field">Card number <input class="input" name="number" inputmode="numeric" autocomplete="cc-number" placeholder="0000 0000 0000 0000" maxlength="19" required></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label class="field">Expiry <input class="input" name="exp" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" maxlength="5" required></label>
+        <label class="field">CVV <input class="input" name="cvv" type="password" inputmode="numeric" autocomplete="cc-csc" placeholder="•••" maxlength="4" required></label>
+      </div>
+      <p class="field-error hidden" id="cardError" role="alert"></p>
+      <button class="btn">Add card</button>
+      <p class="small muted" style="margin:0;text-align:center">Sandbox only. Use a test card such as 4000 0000 0000 0002. We never store your full card number.</p>
+    </form>
+
+    <!-- Step 2: donate -->
+    <section id="donateStep" class="hidden" style="margin-top:16px">
+      <div class="card" style="display:flex;align-items:center;gap:12px">
+        <div class="row__body"><div class="row__title" id="savedCard">FNB •••• 0000</div><div class="row__sub">Card added</div></div>
+        <button class="btn btn--sm btn--ghost" id="changeCard">Change</button>
+      </div>
+
+      <div style="margin-top:18px;font-size:15px;font-weight:700">Choose an amount</div>
+      <div class="grid-4" style="margin-top:10px" id="amounts">
+        <button class="chip" data-amt="50">R50</button>
+        <button class="chip is-on" data-amt="100">R100</button>
+        <button class="chip" data-amt="250">R250</button>
+        <button class="chip" data-amt="other">Other</button>
+      </div>
+      <label class="field hidden" id="otherWrap" style="margin-top:10px">Other amount (R) <input class="input input--white" id="otherAmt" type="number" min="10" step="10"></label>
+
+      <label class="field" style="margin-top:16px">Name on sponsor list <input class="input input--white" id="displayName" placeholder="Your name or company"></label>
+      <label class="small" style="display:flex;gap:10px;align-items:center;margin-top:10px"><input type="checkbox" id="anon" style="width:18px;height:18px;accent-color:#C2502F"> Show me as Anonymous</label>
+
+      <button class="btn" id="donateBtn" style="margin-top:20px">Donate R100</button>
+      <p class="small muted" style="text-align:center;margin:10px 0 0">Sandbox payment · no real money moves</p>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const form = $('cardForm');
+    let amount = 100;
+
+    // Live card preview + formatting
+    form.elements.number.addEventListener('input', (e) => {
+      const digits = e.target.value.replace(/\D/g, '').slice(0, 16);
+      e.target.value = digits.replace(/(.{4})/g, '$1 ').trim();
+      $('cardNum').textContent = (digits.padEnd(16, '•')).replace(/(.{4})/g, '$1 ').trim();
+    });
+    form.elements.exp.addEventListener('input', (e) => {
+      let d = e.target.value.replace(/\D/g, '').slice(0, 4);
+      if (d.length >= 3) d = d.slice(0, 2) + '/' + d.slice(2);
+      e.target.value = d;
+      $('cardExp').textContent = d || 'MM/YY';
+    });
+    form.elements.holder.addEventListener('input', (e) => { $('cardName').textContent = (e.target.value || 'YOUR NAME').toUpperCase(); });
+
+    function luhn(num) {
+      let sum = 0, dbl = false;
+      for (let i = num.length - 1; i >= 0; i--) {
+        let n = +num[i];
+        if (dbl) { n *= 2; if (n > 9) n -= 9; }
+        sum += n; dbl = !dbl;
+      }
+      return sum % 10 === 0;
+    }
+
+    function showDonate(card) {
+      form.classList.add('hidden');
+      $('donateStep').classList.remove('hidden');
+      $('savedCard').textContent = 'FNB •••• ' + card.last4;
+      $('cardNum').textContent = '•••• •••• •••• ' + card.last4;
+      $('cardName').textContent = card.holder.toUpperCase();
+      $('cardExp').textContent = card.exp;
+      const u = LA.user() || {};
+      if (!$('displayName').value) $('displayName').value = card.holder || [u.name, u.surname].join(' ').trim();
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const f = form.elements;
+      const err = $('cardError');
+      const bad = (m) => { err.textContent = m; err.classList.remove('hidden'); };
+      err.classList.add('hidden');
+      const num = f.number.value.replace(/\D/g, '');
+      const [mm, yy] = f.exp.value.split('/').map(Number);
+      const now = new Date();
+      if (!f.holder.value.trim()) return bad('Enter the name on the card.');
+      if (num.length < 13 || !luhn(num)) return bad('That card number does not look right.');
+      if (!mm || mm > 12 || !yy || new Date(2000 + yy, mm) <= now) return bad('Check the expiry date.');
+      if (!/^\d{3,4}$/.test(f.cvv.value)) return bad('Enter the 3-digit CVV.');
+      // Only keep what's safe to show. Never the full number or CVV.
+      const card = { last4: num.slice(-4), holder: f.holder.value.trim(), exp: f.exp.value };
+      LA.store.set('sponsor_card', card);
+      form.reset();
+      showDonate(card);
+      LA.toast('Card added');
+    });
+
+    $('changeCard').addEventListener('click', () => {
+      LA.store.remove('sponsor_card');
+      $('donateStep').classList.add('hidden');
+      form.classList.remove('hidden');
+      $('cardNum').textContent = '•••• •••• •••• ••••';
+      $('cardName').textContent = 'YOUR NAME'; $('cardExp').textContent = 'MM/YY';
+    });
+
+    function setAmountLabel() { $('donateBtn').textContent = amount ? 'Donate R' + amount.toLocaleString('en-ZA') : 'Donate'; }
+    document.querySelectorAll('[data-amt]').forEach((b) => b.addEventListener('click', () => {
+      document.querySelectorAll('[data-amt]').forEach((x) => x.classList.toggle('is-on', x === b));
+      const other = b.dataset.amt === 'other';
+      $('otherWrap').classList.toggle('hidden', !other);
+      amount = other ? Number($('otherAmt').value) || 0 : Number(b.dataset.amt);
+      if (other) $('otherAmt').focus();
+      setAmountLabel();
+    }));
+    $('otherAmt').addEventListener('input', (e) => { amount = Number(e.target.value) || 0; setAmountLabel(); });
+
+    $('donateBtn').addEventListener('click', async () => {
+      const card = LA.store.get('sponsor_card', null);
+      if (!card) return;
+      if (!amount || amount < 10) return LA.toast('Choose an amount of at least R10.');
+      const btn = $('donateBtn');
+      btn.disabled = true; btn.textContent = 'Processing…';
+      const anonymous = $('anon').checked;
+      const donation = {
+        amount, last4: card.last4, bank: 'FNB',
+        display_name: anonymous ? 'Anonymous' : ($('displayName').value.trim() || 'Anonymous'),
+        created: new Date().toISOString(),
+      };
+      const res = await LA.apiOr('/fund/donate/', { body: donation }, () => ({ reference: 'LA-DEMO-' + Date.now().toString().slice(-6), status: 'sandbox' }));
+      donation.reference = res.reference;
+      donation.status = res.status || 'sandbox';
+      const all = LA.store.get('donations', []);
+      all.unshift(donation);
+      LA.store.set('donations', all);
+      await LA.wait(900);
+      location.href = 'receipt.html';
+    });
+
+    const saved = LA.store.get('sponsor_card', null);
+    if (saved) showDonate(saved);
+  </script>
+</body>
+</html>

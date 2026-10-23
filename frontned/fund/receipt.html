@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Donation sent · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .done { margin: 60px auto 0; width: 96px; height: 96px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 14px #DCEFE3; }
+    .kv { display: flex; justify-content: space-between; gap: 12px; padding: 14px 0; font-size: 14px; }
+    .kv + .kv { border-top: 1px solid var(--line); }
+    .kv span:first-child { color: var(--muted); }
+    .kv span:last-child { font-weight: 700; text-align: right; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+</head>
+<body>
+  <main class="app app--plain" style="align-items:stretch">
+    <div class="done" data-icon="check" data-size="44" data-stroke="2.6"></div>
+    <h1 class="title" style="text-align:center;margin:34px 0 6px;font-size:40px" id="amount">Sent</h1>
+    <p class="muted" style="margin:0;text-align:center;font-size:15px">Thank you. You just helped someone leave safely.</p>
+
+    <div class="card" style="margin-top:28px;padding:4px 18px">
+      <div class="kv"><span>From</span><span id="from">—</span></div>
+      <div class="kv"><span>To</span><span>Lerato Survivor Fund</span></div>
+      <div class="kv"><span>Shown as</span><span id="shown">—</span></div>
+      <div class="kv"><span>Reference</span><span id="ref">—</span></div>
+      <div class="kv"><span>Status</span><span style="color:#7A4E00" id="status">Sandbox · demo</span></div>
+    </div>
+
+    <a href="transparency.html" class="btn mt-auto" style="margin-top:28px">See where the money goes</a>
+    <a href="index.html" class="btn btn--ghost" style="margin-top:8px">Back to Fund</a>
+  </main>
+  <script>
+    const d = (LA.store.get('donations', []) || [])[0];
+    if (!d) { location.replace('index.html'); }
+    else {
+      document.getElementById('amount').textContent = 'R' + Number(d.amount).toLocaleString('en-ZA') + ' sent';
+      document.getElementById('from').textContent = d.bank + ' •••• ' + d.last4;
+      document.getElementById('shown').textContent = d.display_name;
+      document.getElementById('ref').textContent = d.reference;
+      if (d.status && d.status !== 'sandbox') document.getElementById('status').textContent = d.status;
+    }
+  </script>
+</body>
+</html>

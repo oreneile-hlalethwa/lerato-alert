@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    body { background: #FFFFFF; }
+    .splash { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; }
+    .splash img { width: 96px; height: 96px; }
+    .splash h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+    .splash p { margin: -10px 0 0; color: var(--muted); font-size: 14px; }
+    .bar { width: 200px; height: 6px; border-radius: 3px; background: #F1E3DE; overflow: hidden; margin-top: 10px; }
+    .bar div { height: 100%; width: 0; background: var(--coral); border-radius: 3px; animation: fill 2s linear forwards; }
+    @keyframes fill { to { width: 100%; } }
+  </style>
+  <script src="../assets/js/app.js"></script>
+</head>
+<body>
+  <main class="splash" aria-busy="true">
+    <img src="../assets/img/logo.svg" alt="">
+    <h1>Lerato Alert</h1>
+    <p>Love shouldn't hurt.</p>
+    <div class="bar" role="progressbar" aria-label="Loading"><div></div></div>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const next = LA.safeNext(params.get('next'), 'index.html');
+    setTimeout(() => location.replace(LA.url(next)), 2000);
+  </script>
+</body>
+</html>

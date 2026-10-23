@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Create your account · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    body { background: #FFFFFF; }
+    .brand { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 24px 0 26px; text-align: center; }
+    .brand img { width: 72px; height: 72px; }
+    .brand h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+    .brand p { margin: 0; color: var(--muted); font-size: 15px; }
+    .tip { background: var(--coral-soft); border-radius: 18px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>if (LA.user()) location.replace(LA.disguisePage());</script>
+</head>
+<body>
+  <main class="app app--plain">
+    <div class="brand">
+      <img src="../assets/img/logo.svg" alt="">
+      <h1>Welcome to Lerato Alert</h1>
+      <p>Tell us a little about you to get started.</p>
+    </div>
+
+    <form id="form" class="stack" novalidate>
+      <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label class="field">Name <input class="input" name="name" autocomplete="given-name" required></label>
+        <label class="field">Surname <input class="input" name="surname" autocomplete="family-name" required></label>
+      </div>
+      <label class="field">Email <input class="input" name="email" type="email" autocomplete="email" required></label>
+      <label class="field">Phone number <input class="input" name="phone" type="tel" autocomplete="tel" placeholder="e.g. 071 234 5678" required></label>
+      <p id="error" class="field-error hidden" role="alert"></p>
+
+      <div class="tip stack" style="gap:10px">
+        <div><strong>Stay hidden.</strong> After today the app opens as a <strong>Calculator</strong>. Choose a secret sum only you know. Typing it, then <strong>=</strong>, opens Lerato Alert.</div>
+        <label class="field" style="color:var(--ink)">Your secret sum
+          <input class="input input--white" name="secret" placeholder="e.g. 47×12" autocomplete="off" required>
+        </label>
+        <div class="small muted">Use numbers and one sign: + − × ÷. Don't use a date someone could guess.</div>
+      </div>
+
+      <label class="small muted" style="display:flex;gap:10px;align-items:flex-start;line-height:1.45">
+        <input type="checkbox" name="consent" required style="margin-top:3px;width:18px;height:18px;accent-color:#C2502F">
+        I agree that Lerato Alert may store my details, location and recordings securely to keep me safe (POPIA).
+      </label>
+
+      <button class="btn" type="submit" id="submit">Create account</button>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById('form');
+    const errorEl = document.getElementById('error');
+
+    function showError(msg) { errorEl.textContent = msg; errorEl.classList.remove('hidden'); }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.classList.add('hidden');
+      const data = Object.fromEntries(new FormData(form));
+      const name = (data.name || '').trim();
+      const surname = (data.surname || '').trim();
+      const email = (data.email || '').trim();
+      const phone = (data.phone || '').replace(/\s+/g, '');
+
+      if (!name || !surname) return showError('Please enter your name and surname.');
+      if (!/^\S+@\S+\.\S+$/.test(email)) return showError('Please enter a valid email address.');
+      if (!/^(\+27|0)\d{9}$/.test(phone)) return showError('Please enter a valid South African number.');
+      const secret = (data.secret || '').replace(/\s+/g, '').replace(/[x*]/gi, '×').replace(/\//g, '÷').replace(/-/g, '−');
+      if (!/^\d+([,.]\d+)?[+−×÷]\d+([,.]\d+)?$/.test(secret)) return showError('Choose a secret sum like 47×12.');
+      if (secret === '19×58') return showError('Please choose your own secret sum, not the example.');
+      if (!data.consent) return showError('Please accept the privacy terms to continue.');
+
+      const btn = document.getElementById('submit');
+      btn.disabled = true;
+      btn.textContent = 'Creating account…';
+
+      const profile = { name, surname, email, phone };
+      const saved = await LA.apiOr('/users/register/', { body: profile }, { id: 'local-' + Date.now() });
+      LA.store.set('user', Object.assign(profile, { id: saved.id, token: saved.token || null }));
+      LA.store.set('disguise', { type: 'calculator', secret });
+
+      // First time: straight into the app.
+      LA.session.unlock();
+      location.replace(LA.url('alert/index.html'));
+    });
+  </script>
+</body>
+</html>

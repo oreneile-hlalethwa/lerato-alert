@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Trusted contacts · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+</head>
+<body>
+  <main class="app app--plain">
+    <div class="topbar">
+      <div class="topbar__left">
+        <a class="icon-btn" href="index.html" aria-label="Back" data-icon="back"></a>
+        <h1 class="title">Trusted contacts</h1>
+      </div>
+      <button class="icon-btn" data-quick-exit></button>
+    </div>
+
+    <form class="card stack" id="wordForm" style="margin-top:20px">
+      <div style="font-size:17px;font-weight:700">Your safe word</div>
+      <p class="small muted" style="margin:-6px 0 0">Say it out loud during a session and we'll alert your contacts. Pick a word you wouldn't say by accident.</p>
+      <div style="display:flex;gap:8px">
+        <label class="grow" style="display:flex"><span class="sr-only">Safe word</span><input class="input" id="safeword" autocomplete="off" placeholder="e.g. pineapple"></label>
+        <button class="btn btn--sm btn--dark" type="submit">Save</button>
+      </div>
+    </form>
+
+    <form class="card stack" id="contactForm" style="margin-top:14px" novalidate>
+      <div style="font-size:17px;font-weight:700">Add a contact</div>
+      <label class="field">Name <input class="input" name="name" autocomplete="off" required></label>
+
+      <div class="field" id="channelGroup">Send alerts via
+        <div class="seg" role="radiogroup" aria-label="Send alerts via">
+          <button type="button" role="radio" data-channel="email" class="is-on" aria-checked="true">Email</button>
+          <button type="button" role="radio" data-channel="number" aria-checked="false" disabled style="opacity:.45">SMS · soon</button>
+          <button type="button" role="radio" data-channel="whatsapp" aria-checked="false" disabled style="opacity:.45">WhatsApp · soon</button>
+        </div>
+      </div>
+
+      <label class="field"><span id="valueLabel">Email address</span> <input class="input" name="value" id="valueInput" type="email" placeholder="name@example.com" autocomplete="off" required></label>
+
+      <div class="field">Who is this?
+        <div class="chips" role="radiogroup" aria-label="Who is this">
+          <button type="button" class="chip is-on" role="radio" aria-checked="true" data-type="kin">Next of kin</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-type="security">Security company</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-type="org">Organisation</button>
+        </div>
+      </div>
+      <p class="field-error hidden" id="error" role="alert"></p>
+      <button class="btn" type="submit">Save contact</button>
+    </form>
+
+    <div class="section-head"><h2 style="font-size:18px">Your contacts</h2></div>
+    <div class="list" id="list"></div>
+  </main>
+
+  <script>
+    const TYPE_LABEL = { kin: 'Next of kin', security: 'Security company', org: 'Organisation' };
+    const CHANNEL_LABEL = { number: 'SMS', email: 'Email', whatsapp: 'WhatsApp' };
+    let channel = 'email';   // SMS & WhatsApp switch on later
+    let type = 'kin';
+
+    // Safe word
+    const wordInput = document.getElementById('safeword');
+    wordInput.value = LA.store.get('safeword', '');
+    document.getElementById('wordForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const w = wordInput.value.trim();
+      if (w && w.length < 3) return LA.toast('Use at least 3 letters.');
+      LA.store.set('safeword', w);
+      LA.toast(w ? 'Safe word saved' : 'Safe word removed');
+    });
+
+    // Channel + type toggles
+    function pick(groupSel, attr, value) {
+      document.querySelectorAll(groupSel).forEach((b) => {
+        const on = b.dataset[attr] === value;
+        b.classList.toggle('is-on', on);
+        b.setAttribute('aria-checked', on);
+      });
+    }
+    document.querySelectorAll('[data-channel]').forEach((b) => b.addEventListener('click', () => {
+      channel = b.dataset.channel;
+      pick('[data-channel]', 'channel', channel);
+      const input = document.getElementById('valueInput');
+      const isEmail = channel === 'email';
+      document.getElementById('valueLabel').textContent = isEmail ? 'Email address' : (channel === 'whatsapp' ? 'WhatsApp number' : 'Phone number');
+      input.type = isEmail ? 'email' : 'tel';
+      input.placeholder = isEmail ? 'name@example.com' : '+27 …';
+    }));
+    document.querySelectorAll('[data-type]').forEach((b) => b.addEventListener('click', () => {
+      type = b.dataset.type;
+      pick('[data-type]', 'type', type);
+    }));
+
+    // List
+    function render() {
+      const list = LA.store.get('contacts', []);
+      const el = document.getElementById('list');
+      if (!list.length) { el.innerHTML = '<div class="list--empty">No contacts yet. Add someone you trust.</div>'; return; }
+      el.innerHTML = list.map((c, i) =>
+        '<div class="row">' +
+          '<div class="avatar" style="width:40px;height:40px;font-size:16px;background:' + (c.type === 'kin' ? '#FBE9E3;color:#C2502F' : '#E5EDFC;color:#2F5FC4') + '">' + LA.escapeHtml(c.name.charAt(0).toUpperCase()) + '</div>' +
+          '<div class="row__body"><div class="row__title">' + LA.escapeHtml(c.name) + '</div>' +
+          '<div class="row__sub">' + TYPE_LABEL[c.type] + ' · ' + CHANNEL_LABEL[c.channel] + ' · ' + LA.escapeHtml(c.value) + '</div></div>' +
+          '<button class="icon-btn" style="width:40px;height:40px;background:var(--bg)" data-remove="' + i + '" aria-label="Remove ' + LA.escapeHtml(c.name) + '">' + LA.icon('trash', 18) + '</button>' +
+        '</div>'
+      ).join('');
+      el.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
+        const all = LA.store.get('contacts', []);
+        all.splice(Number(b.dataset.remove), 1);
+        LA.store.set('contacts', all);
+        render();
+      }));
+    }
+
+    document.getElementById('contactForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const err = document.getElementById('error');
+      const name = form.elements.name.value.trim();
+      const value = form.elements.value.value.trim();
+      err.classList.add('hidden');
+      const bad = (m) => { err.textContent = m; err.classList.remove('hidden'); };
+      if (!name) return bad('Please add a name.');
+      if (channel === 'email' ? !/^\S+@\S+\.\S+$/.test(value) : !/^(\+27|0)\d{9}$/.test(value.replace(/\s+/g, ''))) {
+        return bad(channel === 'email' ? 'Please enter a valid email.' : 'Please enter a valid SA number.');
+      }
+      const contact = { name, channel, value, type };
+      const all = LA.store.get('contacts', []);
+      all.push(contact);
+      LA.store.set('contacts', all);
+      LA.apiOr('/contacts/', { body: Object.assign({ user_id: (LA.user() || {}).id }, contact) }, null);
+      form.reset();
+      render();
+      LA.toast(name + ' added');
+    });
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Where the money goes · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .bar { height: 8px; border-radius: 4px; background: var(--bg); }
+    .bar div { height: 100%; border-radius: 4px; background: var(--coral); }
+    .cause-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+</head>
+<body>
+  <main class="app app--plain">
+    <div class="topbar">
+      <div class="topbar__left">
+        <a class="icon-btn" href="index.html" aria-label="Back" data-icon="back"></a>
+        <h1 class="title" style="font-size:22px">Where the money goes</h1>
+      </div>
+    </div>
+
+    <section class="card card--dark" style="margin-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="muted small">Total sponsored</span><span class="pill pill--amber hidden" id="demoTag">DEMO DATA</span></div>
+      <div style="font-size:38px;font-weight:800;letter-spacing:-0.02em;margin-top:4px" id="total">R0</div>
+      <div class="muted small" id="count">from 0 sponsors</div>
+    </section>
+
+    <section class="card stack" style="margin-top:14px">
+      <div style="font-size:16px;font-weight:700">Spent by cause</div>
+      <div class="stack" id="causes" style="gap:12px"></div>
+      <div class="small muted">Survivors are never named. Only causes are shown.</div>
+    </section>
+
+    <section class="card" style="margin-top:14px;padding:14px 16px 4px">
+      <label class="search" style="background:var(--bg);height:46px">
+        <span data-icon="search" data-size="18"></span>
+        <span class="sr-only">Search sponsors</span>
+        <input type="search" id="q" placeholder="Search sponsors">
+      </label>
+      <div id="sponsors"></div>
+    </section>
+  </main>
+
+  <script>
+    const R = (n) => 'R' + Math.round(n).toLocaleString('en-ZA');
+    const DEMO = {
+      total: 48250, sponsor_count: 312,
+      causes: [
+        { name: 'Emergency transport', amount: 16900 },
+        { name: 'Safe shelter stays', amount: 14500 },
+        { name: 'Legal support', amount: 9650 },
+        { name: 'Food & essentials', amount: 7200 },
+      ],
+      sponsors: [
+        { display_name: 'Thabo M.', amount: 500, created: new Date(Date.now() - 3600e3).toISOString() },
+        { display_name: 'Anonymous', amount: 100, created: new Date(Date.now() - 864e5).toISOString() },
+        { display_name: 'Ubuntu Corporate CSI (demo)', amount: 10000, created: new Date(Date.now() - 3 * 864e5).toISOString() },
+        { display_name: 'Naledi K.', amount: 250, created: new Date(Date.now() - 4 * 864e5).toISOString() },
+      ],
+      demo: true,
+    };
+    let sponsors = [];
+
+    function when(iso) {
+      const days = Math.floor((Date.now() - new Date(iso)) / 864e5);
+      return days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days + ' days ago';
+    }
+
+    function renderSponsors() {
+      const q = document.getElementById('q').value.trim().toLowerCase();
+      const list = sponsors.filter((s) => s.display_name.toLowerCase().includes(q));
+      document.getElementById('sponsors').innerHTML = list.length
+        ? list.map((s) => '<div class="row"><div class="row__body"><div class="row__title">' + LA.escapeHtml(s.display_name) + '</div><div class="row__sub">' + when(s.created) + '</div></div><strong>' + R(s.amount) + '</strong></div>').join('')
+        : '<div class="list--empty" style="padding:14px 0">No sponsors match "' + LA.escapeHtml(q) + '".</div>';
+    }
+
+    async function load() {
+      const data = await LA.apiOr('/fund/summary/', {}, null) || DEMO;
+      const mine = data.demo ? LA.store.get('donations', []) : [];
+      const mineTotal = mine.reduce((s, d) => s + Number(d.amount), 0);
+      const total = data.total + mineTotal;
+      const causes = data.causes.slice();
+      if (mineTotal) causes.push({ name: 'Awaiting allocation', amount: mineTotal });
+      sponsors = mine.map((d) => ({ display_name: d.display_name, amount: d.amount, created: d.created })).concat(data.sponsors);
+
+      document.getElementById('demoTag').classList.toggle('hidden', !(data.demo || data.demo_data));
+      document.getElementById('total').textContent = R(total);
+      document.getElementById('count').textContent = 'from ' + (data.sponsor_count + mine.length).toLocaleString('en-ZA') + ' sponsors';
+      document.getElementById('causes').innerHTML = causes.map((c) =>
+        '<div><div class="cause-head"><span style="font-weight:600">' + LA.escapeHtml(c.name) + '</span><span class="muted">' + R(c.amount) + '</span></div>' +
+        '<div class="bar"><div style="width:' + Math.max(2, total ? (c.amount / total) * 100 : 0).toFixed(1) + '%"></div></div></div>').join('');
+      renderSponsors();
+    }
+
+    document.getElementById('q').addEventListener('input', renderSponsors);
+    load();
+  </script>
+</body>
+</html>

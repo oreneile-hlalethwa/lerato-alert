@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Learn · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .mini-map { width: 72px; height: 72px; border-radius: 16px; background: #2B2B2B; position: relative; overflow: hidden; flex-shrink: 0; }
+    .mini-map i { position: absolute; border-radius: 50%; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+  <script src="../assets/js/lessons.js"></script>
+</head>
+<body data-tab="learn">
+  <main class="app">
+    <div class="topbar">
+      <h1 class="title" style="margin:0">Learn &amp; prevent</h1>
+      <button class="icon-btn" data-quick-exit></button>
+    </div>
+
+    <a href="map.html" class="card card--dark" style="margin-top:16px;padding:14px;display:flex;align-items:center;gap:14px;text-decoration:none">
+      <div class="mini-map" aria-hidden="true">
+        <i style="left:0;right:0;top:30px;height:5px;border-radius:0;background:#3D3D3D"></i>
+        <i style="top:0;bottom:0;left:40px;width:5px;border-radius:0;background:#3D3D3D"></i>
+        <i style="left:10px;top:8px;width:18px;height:18px;background:#E9A93A"></i>
+        <i style="left:46px;top:40px;width:20px;height:20px;background:#D93A3F"></i>
+        <i style="left:12px;top:44px;width:14px;height:14px;background:#3FB37F"></i>
+      </div>
+      <div class="grow"><div style="font-size:16px;font-weight:700">Community safety map</div><div class="small muted">See hotspots before you go</div></div>
+      <span data-icon="chevron"></span>
+    </a>
+
+    <div class="section-head">
+      <h2>Lessons</h2>
+      <span class="pill pill--purple" data-icon="sparkle" data-size="13">Written fresh by AI</span>
+    </div>
+    <div class="list" id="lessons"></div>
+
+    <form class="card stack" id="suggestForm" style="margin-top:14px">
+      <div style="font-size:16px;font-weight:700">Recommend a lesson</div>
+      <div style="display:flex;gap:8px">
+        <label class="grow" style="display:flex"><span class="sr-only">Lesson topic</span><input class="input" id="topic" placeholder="e.g. Online harassment" maxlength="80"></label>
+        <button class="btn btn--sm">Suggest</button>
+      </div>
+      <div id="suggestions" class="small muted"></div>
+    </form>
+  </main>
+
+  <script>
+    const done = LA.store.get('lessons_done', []);
+    const firstOpen = LESSONS.find((l) => !l.live && !done.includes(l.id));
+
+    document.getElementById('lessons').innerHTML = LESSONS.map((l) => {
+      const href = l.live ? 'friend.html' : 'lesson.html?id=' + l.id;
+      let right = '';
+      if (l.live) right = '<span class="pill pill--green"><span class="dot" style="background:var(--green);width:7px;height:7px"></span>Live</span>';
+      else if (done.includes(l.id)) right = '<span class="check" style="width:30px;height:30px">' + LA.icon('check', 15, 3) + '</span>';
+      else if (firstOpen && firstOpen.id === l.id) right = '<span class="pill pill--coral">Up next</span>';
+      return '<a class="row" href="' + href + '">' +
+        '<div class="tile ' + l.tile + '" style="width:42px;height:42px;border-radius:12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + l.svg + '</svg></div>' +
+        '<div class="row__body"><div class="row__title">' + l.title + '</div><div class="row__sub">' + (l.live ? 'Ask anything' : l.minutes + ' min') + '</div></div>' + right + '</a>';
+    }).join('');
+
+    function renderSuggestions() {
+      const list = LA.store.get('lesson_suggestions', []);
+      document.getElementById('suggestions').innerHTML = list.length
+        ? 'Your ideas: ' + list.slice(0, 3).map((t) => '<a href="lesson.html?topic=' + encodeURIComponent(t) + '" style="font-weight:700">' + LA.escapeHtml(t) + '</a>').join(', ')
+        : '';
+    }
+
+    document.getElementById('suggestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const topic = document.getElementById('topic').value.trim();
+      if (topic.length < 3) return LA.toast('Tell us a topic first.');
+      await LA.apiOr('/lessons/suggest/', { body: { topic } }, null);
+      const list = LA.store.get('lesson_suggestions', []);
+      list.unshift(topic);
+      LA.store.set('lesson_suggestions', list.slice(0, 10));
+      document.getElementById('topic').value = '';
+      renderSuggestions();
+      LA.toast('Thanks! Tap your idea to read an AI lesson on it.');
+    });
+
+    renderSuggestions();
+  </script>
+</body>
+</html>

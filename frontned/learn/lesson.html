@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lesson · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .point { background: var(--card); border-radius: 20px; padding: 14px 16px; display: flex; gap: 12px; }
+    .num { width: 28px; height: 28px; border-radius: 50%; background: var(--coral-soft); color: var(--coral); font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .skeleton { background: linear-gradient(90deg, #E4E2DE 25%, #F0EEEB 50%, #E4E2DE 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 12px; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+  <script src="../assets/js/lessons.js"></script>
+</head>
+<body>
+  <main class="app app--plain">
+    <div class="topbar">
+      <div class="topbar__left" style="flex:1">
+        <a class="icon-btn" href="index.html" aria-label="Back" data-icon="back"></a>
+        <div class="progress"><div id="bar" style="width:0%"></div></div>
+      </div>
+      <button class="icon-btn" data-quick-exit></button>
+    </div>
+
+    <div id="content" aria-live="polite" aria-busy="true">
+      <div class="skeleton" style="height:22px;width:140px;margin-top:24px"></div>
+      <div class="skeleton" style="height:64px;margin-top:14px"></div>
+      <div class="skeleton" style="height:80px;margin-top:18px"></div>
+      <div class="skeleton" style="height:80px;margin-top:10px"></div>
+      <div class="skeleton" style="height:80px;margin-top:10px"></div>
+    </div>
+
+    <button class="btn mt-auto hidden" id="doneBtn" style="margin-top:24px">Mark as done</button>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const customTopic = (params.get('topic') || '').slice(0, 80);
+    const base = LESSONS.find((l) => l.id === id && !l.live);
+    const topic = base ? base.title : customTopic;
+
+    function render(lesson, fromAI) {
+      const el = document.getElementById('content');
+      const badge = fromAI
+        ? '<span class="pill pill--purple" style="margin-top:22px">' + LA.icon('sparkle', 13) + 'Written by AI for you</span>'
+        : '<span class="pill pill--amber" style="margin-top:22px">Starter lesson</span>';
+      el.innerHTML = badge +
+        '<h1 class="title" style="margin:12px 0 8px;font-size:28px">' + LA.escapeHtml(lesson.title) + '</h1>' +
+        '<p style="margin:0;font-size:15px;line-height:1.55;color:#3D3C3A">' + LA.escapeHtml(lesson.intro) + '</p>' +
+        '<div class="stack" style="margin-top:18px;gap:10px">' +
+        (lesson.points || []).map((p, i) => '<div class="point"><span class="num">' + (i + 1) + '</span><div><div style="font-size:15px;font-weight:700">' +
+          LA.escapeHtml(p.title) + '</div><div class="muted" style="font-size:14px;line-height:1.45">' + LA.escapeHtml(p.body) + '</div></div></div>').join('') +
+        '</div>' +
+        (lesson.takeaway ? '<div class="card card--soft" style="margin-top:14px;font-size:14px;line-height:1.5"><strong>Remember: </strong>' + LA.escapeHtml(lesson.takeaway) + '</div>' : '') +
+        '<a href="../help/index.html" style="display:inline-block;margin-top:14px;font-size:14px;font-weight:700">Sounds familiar? Talk to someone →</a>';
+      el.setAttribute('aria-busy', 'false');
+      document.getElementById('bar').style.width = '100%';
+      document.title = lesson.title + ' · Lerato Alert';
+      if (base) document.getElementById('doneBtn').classList.remove('hidden');
+    }
+
+    async function load() {
+      if (!topic) { location.replace('index.html'); return; }
+      document.getElementById('bar').style.width = '30%';
+      try {
+        const ai = await LA.api('/ai/lesson/', { body: { topic, id: id || null }, timeout: 25000 });
+        if (ai && ai.title && ai.points) return render(ai, true);
+        throw new Error('bad lesson');
+      } catch (e) {
+        if (base) return render(base, false);
+        render({
+          title: topic,
+          intro: 'This lesson will be written by AI once the Lerato Alert server is connected. Thanks for suggesting it!',
+          points: [],
+          takeaway: 'In the meantime, the "How to help a friend" chat can answer questions on this topic.',
+        }, false);
+      }
+    }
+
+    document.getElementById('doneBtn').addEventListener('click', () => {
+      const done = LA.store.get('lessons_done', []);
+      if (!done.includes(base.id)) done.push(base.id);
+      LA.store.set('lessons_done', done);
+      LA.toast('Lesson complete');
+      setTimeout(() => location.href = 'index.html', 700);
+    });
+
+    load();
+  </script>
+</body>
+</html>

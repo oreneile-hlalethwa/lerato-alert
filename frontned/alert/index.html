@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Alert · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .status { display: flex; align-items: center; gap: 20px; }
+    .rings { position: relative; width: 124px; height: 124px; flex-shrink: 0; }
+    .rings svg circle { transition: stroke-dasharray .4s; }
+    .rings__icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--coral); }
+    .stat { display: flex; gap: 8px; align-items: flex-start; }
+    .stat .dot { margin-top: 6px; }
+    .stat__label { font-size: 13px; color: var(--muted); }
+    .stat__value { font-size: 17px; font-weight: 700; }
+    .mode { width: 100%; background: none; border: 0; text-align: left; }
+    .live { margin-top: 14px; }
+    .meter { height: 8px; border-radius: 4px; background: rgba(255,255,255,.15); overflow: hidden; margin-top: 10px; }
+    .meter div { height: 100%; width: 0; background: #E9A93A; transition: width .08s; }
+    .heard { font-size: 14px; color: #CFCFCF; margin-top: 8px; min-height: 20px; font-style: italic; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+  <script src="../assets/js/vault-db.js"></script>
+</head>
+<body data-tab="alert">
+  <main class="app">
+    <div class="topbar">
+      <div class="avatar" id="initial" aria-hidden="true">L</div>
+      <div class="topbar__actions">
+        <button class="icon-btn" data-quick-exit></button>
+        <a class="icon-btn" href="../disguise/settings.html" aria-label="Disguise settings" data-icon="eyeoff"></a>
+      </div>
+    </div>
+
+    <h1 class="title" id="greeting">Hello</h1>
+
+    <section class="card status" aria-label="Safety status">
+      <div class="rings">
+        <svg width="124" height="124" viewBox="0 0 124 124" aria-hidden="true">
+          <circle cx="62" cy="62" r="56" fill="none" stroke="#F1E3DE" stroke-width="10"/>
+          <circle id="ring1" cx="62" cy="62" r="56" fill="none" stroke="#E07A5F" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 352" transform="rotate(-90 62 62)"/>
+          <circle cx="62" cy="62" r="41" fill="none" stroke="#F5EBD3" stroke-width="10"/>
+          <circle id="ring2" cx="62" cy="62" r="41" fill="none" stroke="#E9A93A" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 258" transform="rotate(-90 62 62)"/>
+          <circle cx="62" cy="62" r="26" fill="none" stroke="#DDE6F5" stroke-width="10"/>
+          <circle id="ring3" cx="62" cy="62" r="26" fill="none" stroke="#5B8DEF" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 163" transform="rotate(-90 62 62)"/>
+        </svg>
+        <div class="rings__icon" data-icon="shield" data-stroke="2.2"></div>
+      </div>
+      <div class="stack" style="gap:10px">
+        <div class="stat"><span class="dot" style="background:#E07A5F"></span><div><div class="stat__label">Safe word</div><div class="stat__value" id="statWord">Not set</div></div></div>
+        <div class="stat"><span class="dot" style="background:#E9A93A"></span><div><div class="stat__label">Trusted contacts</div><div class="stat__value" id="statContacts">0 linked</div></div></div>
+        <div class="stat"><span class="dot" style="background:#5B8DEF"></span><div><div class="stat__label">Live location</div><div class="stat__value" id="statLocation">Off</div></div></div>
+      </div>
+    </section>
+
+    <button class="btn" id="startBtn" style="margin-top:16px" type="button"><span data-icon="mic"></span><span id="startLabel">Start safe session</span></button>
+
+    <section class="card card--dark live hidden" id="livePanel" aria-live="polite">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-weight:700;font-size:16px">Listening quietly</div><div class="muted small" id="liveMode">Jogging mode</div></div>
+        <span class="pill pill--coral"><span class="dot" style="background:#fff"></span>Live</span>
+      </div>
+      <div class="meter" aria-hidden="true"><div id="meter"></div></div>
+      <div class="heard" id="heard"></div>
+    </section>
+
+    <div class="section-head">
+      <h2>Safe modes</h2>
+      <a href="contacts.html">Edit contacts</a>
+    </div>
+    <div class="list" role="radiogroup" aria-label="Safe mode" id="modes">
+      <button class="row mode" role="radio" data-mode="jogging">
+        <div class="tile tile--coral"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="4" r="2"/><path d="M8 21l3-6 3 2v5M6 12l3-4 4 1 3 3 3 1"/></svg></div>
+        <div class="row__body"><div class="row__title" style="font-size:16px">Jogging</div><div class="row__sub">Safe word + scream detection</div></div>
+        <span class="mark"></span>
+      </button>
+      <button class="row mode" role="radio" data-mode="commute">
+        <div class="tile tile--amber"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="14" rx="2"/><path d="M5 11h14M8 21v-4M16 21v-4"/></svg></div>
+        <div class="row__body"><div class="row__title" style="font-size:16px">Commute</div><div class="row__sub">Taxi, bus, ride-hailing</div></div>
+        <span class="mark"></span>
+      </button>
+      <button class="row mode" role="radio" data-mode="home">
+        <div class="tile tile--blue"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg></div>
+        <div class="row__body"><div class="row__title" style="font-size:16px">At home</div><div class="row__sub">Silent alert to security &amp; organisations only</div></div>
+        <span class="mark"></span>
+      </button>
+    </div>
+  </main>
+
+  <!-- Countdown / sent sheet -->
+  <div class="overlay hidden" id="overlay" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet" id="sheetCountdown">
+      <h2 id="sheetTitle">Sending alert in</h2>
+      <div class="countdown" id="count">5</div>
+      <p class="muted small" style="margin:0;text-align:center" id="reason"></p>
+      <button class="btn btn--dark" id="cancelBtn">I'm safe – cancel</button>
+    </div>
+    <div class="sheet hidden" id="sheetSent">
+      <h2>Help is on the way</h2>
+      <p style="margin:0" id="sentText"></p>
+      <a class="btn" href="tel:10111">Call SAPS 10111</a>
+      <button class="btn btn--ghost" id="doneBtn">Close</button>
+    </div>
+  </div>
+
+  <script src="../assets/js/alert.js"></script>
+</body>
+</html>

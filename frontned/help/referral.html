@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Get referred · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>.app { height: 100vh; height: 100dvh; min-height: 0; }</style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+  <script src="../assets/js/chat.js"></script>
+</head>
+<body>
+  <main class="app app--plain">
+    <div class="topbar">
+      <div class="topbar__left">
+        <a class="icon-btn" href="index.html" aria-label="Back" data-icon="back"></a>
+        <div><h1 class="title" style="font-size:22px">Get referred</h1><div class="small muted">Private chat · nothing is saved</div></div>
+      </div>
+      <button class="icon-btn" data-quick-exit></button>
+    </div>
+    <div style="margin-top:16px;display:flex;align-items:center;gap:10px">
+      <div class="progress"><div id="bar" style="width:0%"></div></div>
+      <span class="small muted" style="font-weight:700" id="step">Question 1 of 3</span>
+    </div>
+
+    <div class="chat" id="chat" aria-live="polite"></div>
+    <div class="quick" id="quick" style="margin-bottom:12px"></div>
+    <form class="composer" id="composer" autocomplete="off">
+      <label class="search"><span class="sr-only">Your answer</span><input id="input" placeholder="Type your answer…"></label>
+      <button class="send-btn" aria-label="Send" data-icon="send" data-stroke="2.2"></button>
+    </form>
+  </main>
+
+  <script>
+    // Scripted fallback so the referral works even before the AI backend is connected.
+    const SCRIPT = [
+      { q: "Hi, I'm here to help you find the right support. First: are you safe right now?", options: ['Yes, for now', 'No, I need help now', 'Not sure'] },
+      { q: 'Thank you for telling me. What do you need most right now?', options: ['Somewhere safe to stay', 'Medical care', 'Report to police', 'Someone to talk to'] },
+      { q: 'Is anyone with you who also needs help, like children?', options: ['Just me', 'Me and my kids', 'Rather not say'] },
+    ];
+    const REFERRALS = {
+      stay: { title: 'a safe shelter', text: 'A shelter can give you and anyone with you a safe place to stay. The GBV Command Centre (0800 428 428) can find a bed for you tonight.', link: 'index.html', cta: 'Find shelters near me' },
+      medical: { title: 'a Thuthuzela Care Centre', text: 'They give medical care, counselling and help with a police case, all in one place, free.', link: 'index.html', cta: 'Find the nearest centre' },
+      police: { title: 'your nearest police station', text: 'You can open a case and ask for a protection order. You can bring someone you trust with you.', link: 'index.html', cta: 'Find a police station' },
+      talk: { title: 'a trained counsellor', text: 'The GBV Command Centre has counsellors 24/7 on 0800 428 428, free. You can also SMS "HELP" to 31531.', link: 'tel:0800428428', cta: 'Call 0800 428 428' },
+    };
+
+    Chat.create({
+      endpoint: '/ai/referral/',
+      maxTurns: 3,
+      onTurn(turn) {
+        document.getElementById('bar').style.width = Math.min(100, (turn / 3) * 100) + '%';
+        document.getElementById('step').textContent = turn >= 3 ? 'Done' : 'Question ' + (turn + 1) + ' of 3';
+      },
+      opening: SCRIPT[0],
+      scripted(answers) {
+        const turn = answers.length;
+        const last = (answers[turn - 1] || '').toLowerCase();
+        let urgent = '';
+        if (turn === 1 && /^no\b|danger|not safe|help now/.test(last)) {
+          urgent = 'If you are in danger right now, please call SAPS on 10111, or press Start safe session on the Alert tab. ';
+        }
+        if (turn < 3) return { reply: urgent + SCRIPT[turn].q, options: SCRIPT[turn].options };
+        const need = (answers[1] || '').toLowerCase();
+        const key = /stay|shelter|home|sleep/.test(need) ? 'stay' : /medic|hurt|injur|doctor|rape/.test(need) ? 'medical' : /police|report|case|order/.test(need) ? 'police' : 'talk';
+        const r = REFERRALS[key];
+        const kids = /kid|child|baby/.test((answers[2] || '').toLowerCase()) ? ' Let them know your children are with you so they can plan for them too.' : '';
+        return { reply: 'Based on what you shared, I recommend ' + r.title + '. ' + r.text + kids, action: { href: r.link, label: r.cta }, done: true };
+      },
+    });
+  </script>
+</body>
+</html>

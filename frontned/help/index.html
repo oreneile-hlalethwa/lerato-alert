@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Get help · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .map { margin-top: 16px; height: 220px; border-radius: 24px; overflow: hidden; background: #E4E9E1; position: relative; }
+    .map iframe { width: 100%; height: 100%; border: 0; }
+    .map__badge { position: absolute; left: 12px; bottom: 12px; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+</head>
+<body data-tab="help">
+  <main class="app">
+    <div class="topbar">
+      <h1 class="title" style="margin:0">Get help</h1>
+      <button class="icon-btn" data-quick-exit></button>
+    </div>
+
+    <div class="map">
+      <iframe id="map" title="Map of help near you" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <span class="pill pill--white map__badge" id="locBadge">Finding your location…</span>
+    </div>
+
+    <div class="chips" style="margin-top:14px" role="radiogroup" aria-label="Type of help" id="cats"></div>
+
+    <div class="section-head"><h2>Nearest to you</h2></div>
+    <div class="list" id="nearby"></div>
+
+    <div class="section-head"><h2>Verified helplines</h2></div>
+    <div class="list" id="hotlines"></div>
+
+    <a href="referral.html" class="card card--soft" style="margin-top:14px;display:flex;align-items:center;gap:14px;text-decoration:none">
+      <div class="grow">
+        <div style="font-size:16px;font-weight:700">Not sure where to go?</div>
+        <div class="small muted">Chat privately, get referred in 3 questions.</div>
+      </div>
+      <span class="btn btn--sm">Get referred</span>
+    </a>
+  </main>
+
+  <script>
+    const CATS = [
+      { id: 'care', label: 'Care centre', query: 'Thuthuzela Care Centre', note: 'Medical, counselling & legal help after rape' },
+      { id: 'police', label: 'Police', query: 'police station', note: 'Open a case or get a protection order' },
+      { id: 'shelter', label: 'Shelter', query: "women's shelter", note: 'Safe place to stay' },
+      { id: 'hospital', label: 'Hospital', query: 'hospital', note: 'Emergency medical care' },
+    ];
+    const HOTLINES = [
+      { name: 'GBV Command Centre', detail: '0800 428 428 · 24/7, free', tel: '0800428428' },
+      { name: 'SAPS Emergency', detail: '10111', tel: '10111' },
+      { name: 'Legal Aid SA advice line', detail: '0800 110 110 · free', tel: '0800110110' },
+      { name: 'Childline', detail: '116 · for children', tel: '116' },
+    ];
+    let cat = CATS[0];
+    let pos = null;
+
+    const mapsSearch = (q) => 'https://www.google.com/maps/search/' + encodeURIComponent(q) + (pos ? '/@' + pos.lat + ',' + pos.lng + ',14z' : '');
+
+    function renderCats() {
+      document.getElementById('cats').innerHTML = CATS.map((c) =>
+        '<button class="chip chip--dark' + (c.id === cat.id ? ' is-on' : '') + '" role="radio" aria-checked="' + (c.id === cat.id) + '" data-cat="' + c.id + '">' + c.label + '</button>').join('');
+      document.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => {
+        cat = CATS.find((c) => c.id === b.dataset.cat); renderCats(); renderMap(); loadNearby();
+      }));
+    }
+
+    function renderMap() {
+      const near = pos ? '&ll=' + pos.lat + ',' + pos.lng + '&z=13' : '+South+Africa&z=6';
+      document.getElementById('map').src = 'https://www.google.com/maps?q=' + encodeURIComponent(cat.query) + near + '&output=embed';
+    }
+
+    function row(title, sub, href, iconName, label) {
+      return '<div class="row"><div class="row__body"><div class="row__title">' + LA.escapeHtml(title) +
+        ' <span style="color:var(--green)" role="img" aria-label="Verified">' + LA.icon('verified', 16, 2.4) + '</span></div>' +
+        '<div class="row__sub">' + LA.escapeHtml(sub) + '</div></div>' +
+        '<a class="round-link" href="' + href + '" target="' + (href.startsWith('tel:') ? '_self' : '_blank') + '" rel="noopener" aria-label="' + label + '">' + LA.icon(iconName, 18) + '</a></div>';
+    }
+
+    async function loadNearby() {
+      const el = document.getElementById('nearby');
+      el.innerHTML = '<div class="list--empty">Searching…</div>';
+      // Backend (Google Places) returns verified centres with distance. Until then, open a Maps search near the user.
+      const data = pos ? await LA.apiOr('/services/nearby/?type=' + cat.id + '&lat=' + pos.lat + '&lng=' + pos.lng, {}, null) : null;
+      if (data && data.results && data.results.length) {
+        el.innerHTML = data.results.slice(0, 4).map((s) =>
+          row(s.name, (s.distance_km ? s.distance_km.toFixed(1) + ' km · ' : '') + (s.open_now ? 'Open now' : (s.address || '')),
+            'https://www.google.com/maps/dir/?api=1&destination=' + s.lat + ',' + s.lng, 'pin', 'Directions to ' + s.name)).join('');
+      } else {
+        el.innerHTML = row(cat.label + ' near you', cat.note, mapsSearch(cat.query), 'pin', 'Show ' + cat.label + ' near you on Maps');
+      }
+    }
+
+    document.getElementById('hotlines').innerHTML = HOTLINES.map((h) => row(h.name, h.detail, 'tel:' + h.tel, 'phone', 'Call ' + h.name)).join('');
+
+    renderCats();
+    renderMap();
+    loadNearby();
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition((p) => {
+        pos = { lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) };
+        document.getElementById('locBadge').textContent = 'Using your location';
+        renderMap(); loadNearby();
+      }, () => {
+        document.getElementById('locBadge').textContent = 'Location off · showing South Africa';
+      }, { enableHighAccuracy: true, timeout: 10000 });
+    } else {
+      document.getElementById('locBadge').textContent = 'Location not available';
+    }
+  </script>
+</body>
+</html>

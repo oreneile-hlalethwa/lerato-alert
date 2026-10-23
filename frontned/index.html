@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Calculator</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/img/calc-icon.svg">
+  <meta name="theme-color" content="#161616">
+  <script src="assets/js/app.js"></script>
+  <script>
+    // Entry point: first-time users see the loading screen then register.
+    // Registered users always land on their disguise app first.
+    if (!LA.user()) {
+      location.replace(LA.url('onboarding/loading.html?next=onboarding/register.html'));
+    } else {
+      location.replace(LA.disguisePage());
+    }
+  </script>
+</head>
+<body style="background:#161616"></body>
+</html>

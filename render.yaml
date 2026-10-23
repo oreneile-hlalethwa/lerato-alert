@@ -1,0 +1,36 @@
+# Render Blueprint: one web service runs Django and serves the frontend.
+# Render → New → Blueprint → pick this repo. Fill in the "sync: false" values when asked.
+services:
+  - type: web
+    name: lerato-alert
+    runtime: python
+    plan: free
+    buildCommand: >-
+      pip install -r backend/requirements.txt &&
+      python backend/manage.py collectstatic --noinput &&
+      python backend/manage.py migrate --noinput
+    startCommand: cd backend && gunicorn lerato.wsgi:application --workers 2 --threads 4 --timeout 60
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL          # Supabase → Connect → Session pooler URI
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL    # must be a verified sender in Brevo
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false

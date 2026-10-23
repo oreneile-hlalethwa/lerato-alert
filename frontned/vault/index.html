@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vault · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../assets/js/app.js"></script>
+  <script>
+    if (LA.guard()) {
+      let ok = false; try { ok = sessionStorage.getItem('la_vault') === '1'; } catch (e) {}
+      if (!ok) location.replace('pin.html');
+    }
+  </script>
+  <script src="../assets/js/vault-db.js"></script>
+</head>
+<body data-tab="vault">
+  <main class="app">
+    <div class="topbar">
+      <span class="pill pill--white" data-icon="lock" data-size="16" data-stroke="2.2">Private · backed up</span>
+      <button class="icon-btn" data-quick-exit></button>
+    </div>
+    <h1 class="title" style="margin-bottom:6px">Evidence Vault</h1>
+    <p class="muted" style="margin:0 0 18px;font-size:15px">Hidden, timestamped and safely backed up, even if your phone is taken.</p>
+
+    <div class="grid-3">
+      <button class="action-tile" id="audioBtn"><span class="tile tile--coral" data-icon="mic"></span><span id="audioLabel">Audio</span></button>
+      <label class="action-tile" style="cursor:pointer">
+        <span class="tile tile--amber"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>Photo/Video
+        <input type="file" id="photoInput" accept="image/*,video/*" class="sr-only">
+      </label>
+      <button class="action-tile" id="noteBtn"><span class="tile tile--blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/></svg></span>Note</button>
+    </div>
+
+    <div class="section-head"><h2>Recent evidence</h2></div>
+    <div class="list" id="list"><div class="list--empty">Loading…</div></div>
+
+    <section class="card card--dark stack" style="margin-top:16px">
+      <div>
+        <div style="font-size:18px;font-weight:700">Report safely</div>
+        <div class="muted small" style="font-size:14px">Send your evidence anonymously, or when you're ready.</div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn--sm grow" id="reportBtn">Report anonymously</button>
+        <button class="btn btn--sm grow" id="laterBtn" style="background:transparent;border:1px solid #5F5E5B">Later</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Note sheet -->
+  <div class="overlay hidden" id="noteSheet" role="dialog" aria-modal="true" aria-labelledby="noteTitle">
+    <form class="sheet" id="noteForm">
+      <h2 id="noteTitle">Write what happened</h2>
+      <label class="field">What happened? <textarea class="input" name="text" required placeholder="Write it in your own words. Date and time are added for you."></textarea></label>
+      <div style="display:flex;gap:10px"><button type="button" class="btn btn--ghost grow" data-close>Cancel</button><button class="btn grow">Save note</button></div>
+    </form>
+  </div>
+
+  <!-- Report sheet -->
+  <div class="overlay hidden" id="reportSheet" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+    <form class="sheet" id="reportForm">
+      <h2 id="reportTitle">Anonymous report</h2>
+      <p class="small muted" style="margin:-6px 0 0">Your name and number are not sent.</p>
+      <label class="field">Type of incident
+        <select class="input" name="kind">
+          <option>Physical abuse</option><option>Sexual violence</option><option>Emotional or verbal abuse</option>
+          <option>Financial control</option><option>Stalking or harassment</option><option>Other</option>
+        </select>
+      </label>
+      <label class="field">Area (optional) <input class="input" name="area" placeholder="Suburb or township"></label>
+      <label class="small" style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="evidence" checked style="width:18px;height:18px;accent-color:#C2502F"> Include my vault evidence</label>
+      <div style="display:flex;gap:10px"><button type="button" class="btn btn--ghost grow" data-close>Cancel</button><button class="btn grow">Send report</button></div>
+    </form>
+  </div>
+
+  <!-- Viewer -->
+  <div class="overlay hidden" id="viewer" role="dialog" aria-modal="true" aria-label="Evidence">
+    <div class="sheet"><div id="viewerBody"></div><button class="btn btn--dark" data-close>Close</button></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const KIND = {
+      audio: { tile: 'tile--coral', svg: '<path d="M3 12h3l2-5 4 10 2-5h7"/>' },
+      photo: { tile: 'tile--amber', svg: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>' },
+      note:  { tile: 'tile--blue',  svg: '<path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/>' },
+      video: { tile: 'tile--purple', svg: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/>' },
+    };
+    function statusPill(it) {
+      if (it.cloudOnly) return '<span class="pill pill--purple">In cloud</span>';
+      if (it.remoteId) return '<span class="pill pill--green">Backed up</span>';
+      return '<span class="pill pill--amber">On phone</span>';
+    }
+    const fmtDate = (iso) => new Date(iso).toLocaleString('en-ZA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    let items = [];
+
+    async function render() {
+      try { items = await VaultDB.all(); } catch (e) { items = []; }
+      try { items = items.concat(await VaultDB.remoteOnly()).sort((a, b) => b.created.localeCompare(a.created)); } catch (e) {}
+      const el = $('list');
+      if (!items.length) { el.innerHTML = '<div class="list--empty">Nothing saved yet. Recordings from alerts land here automatically.</div>'; return; }
+      el.innerHTML = items.slice(0, 20).map((it) =>
+        '<div class="row">' +
+          '<button class="tile ' + KIND[it.kind].tile + '" style="border:0;width:44px;height:44px;border-radius:12px" data-view="' + LA.escapeHtml(it.id) + '" aria-label="Open ' + LA.escapeHtml(it.title) + '">' +
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + KIND[it.kind].svg + '</svg></button>' +
+          '<div class="row__body"><div class="row__title">' + LA.escapeHtml(it.title) + '</div><div class="row__sub">' + fmtDate(it.created) + '</div></div>' +
+          statusPill(it) +
+          '<button class="icon-btn" style="width:36px;height:36px;background:var(--bg)" data-del="' + LA.escapeHtml(it.id) + '" aria-label="Delete">' + LA.icon('trash', 16) + '</button>' +
+        '</div>'
+      ).join('');
+      el.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => view(b.dataset.view)));
+      el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+        if (!confirm('Delete this evidence for good? It will also be removed from the backup.')) return;
+        const it = items.find((x) => x.id === b.dataset.del);
+        await VaultDB.remove(b.dataset.del, it && it.remoteId); render();
+      }));
+    }
+
+    function openSheet(id) { $(id).classList.remove('hidden'); }
+    document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => {
+      b.closest('.overlay').classList.add('hidden');
+      $('viewerBody').innerHTML = '';
+    }));
+
+    function view(id) {
+      const it = items.find((x) => x.id === id);
+      if (!it) return;
+      const body = $('viewerBody');
+      body.innerHTML = '<h2 style="margin:0 0 4px">' + LA.escapeHtml(it.title) + '</h2><p class="small muted" style="margin:0 0 12px">' + fmtDate(it.created) + '</p>';
+      if (it.kind === 'note') body.insertAdjacentHTML('beforeend', '<p style="white-space:pre-wrap;line-height:1.5;margin:0">' + LA.escapeHtml(it.text) + '</p>');
+      else {
+        const tag = it.kind === 'photo' ? 'img' : it.kind;
+        const media = document.createElement(tag);
+        media.src = it.blob ? URL.createObjectURL(it.blob) : it.url;
+        if (tag === 'img') media.alt = 'Evidence photo'; else { media.controls = true; media.playsInline = true; }
+        media.style.width = '100%'; media.style.borderRadius = '14px';
+        body.appendChild(media);
+      }
+      openSheet('viewer');
+    }
+
+    // Audio recording
+    let recorder = null, recStream = null, chunks = [];
+    $('audioBtn').addEventListener('click', async () => {
+      if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+      try { recStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+      catch (e) { return LA.toast('Microphone permission is needed.'); }
+      chunks = [];
+      recorder = new MediaRecorder(recStream);
+      recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      recorder.onstop = async () => {
+        recStream.getTracks().forEach((t) => t.stop());
+        $('audioLabel').textContent = 'Audio';
+        $('audioBtn').classList.remove('listening');
+        await VaultDB.add({ kind: 'audio', title: 'Voice recording', blob: new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }) });
+        LA.toast('Recording saved'); render();
+      };
+      recorder.start();
+      $('audioLabel').textContent = 'Stop';
+      $('audioBtn').classList.add('listening');
+    });
+
+    // Photo
+    $('photoInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const isVideo = file.type.startsWith('video/');
+      await VaultDB.add({ kind: isVideo ? 'video' : 'photo', title: isVideo ? 'Video' : 'Photo', blob: file });
+      e.target.value = '';
+      LA.toast((isVideo ? 'Video' : 'Photo') + ' saved'); render();
+    });
+
+    // Note
+    $('noteBtn').addEventListener('click', () => openSheet('noteSheet'));
+    $('noteForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = e.target.elements.text.value.trim();
+      if (!text) return;
+      await VaultDB.add({ kind: 'note', title: 'Incident note', text });
+      e.target.reset(); $('noteSheet').classList.add('hidden');
+      LA.toast('Note saved'); render();
+    });
+
+    // Report
+    $('reportBtn').addEventListener('click', () => openSheet('reportSheet'));
+    $('laterBtn').addEventListener('click', () => LA.toast('No problem. Your evidence stays safe here.'));
+    $('reportForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target.elements;
+      const payload = {
+        anonymous: true, kind: f.kind.value, area: f.area.value.trim(),
+        evidence_count: f.evidence.checked ? items.length : 0, created: new Date().toISOString(),
+      };
+      const res = await LA.apiOr('/reports/', { body: payload }, { demo: true, reference: 'LA-R-' + Date.now().toString().slice(-5) });
+      $('reportSheet').classList.add('hidden');
+      LA.toast('Report sent anonymously' + (res.reference ? ' · Ref ' + res.reference : ''), 3500);
+    });
+
+    document.addEventListener('vault:synced', () => render());
+    render();
+  </script>
+</body>
+</html>

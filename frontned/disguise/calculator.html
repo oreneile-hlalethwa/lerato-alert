@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Calculator</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="icon" href="../assets/img/calc-icon.svg">
+  <meta name="theme-color" content="#161616">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Calculator">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #161616; color: #fff; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .calc { max-width: 430px; height: 100%; margin: 0 auto; padding: 24px 20px 32px; display: flex; flex-direction: column; justify-content: flex-end; gap: 18px; }
+    .screen { text-align: right; padding: 0 8px; overflow: hidden; }
+    .expr { font-size: 22px; color: #9C9C9C; min-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; }
+    .value { font-size: 76px; font-weight: 300; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; }
+    .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .keys button { aspect-ratio: 1; border: 0; border-radius: 50%; font-size: 30px; background: #2E2E2E; color: #fff; }
+    .keys button:active { filter: brightness(1.4); }
+    .keys .fn { background: #A5A5A5; color: #161616; font-weight: 600; font-size: 24px; }
+    .keys .op { background: #E9A93A; color: #161616; font-weight: 600; font-size: 34px; }
+    .keys .zero { grid-column: span 2; aspect-ratio: auto; border-radius: 999px; text-align: left; padding-left: 32px; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>if (!LA.user()) location.replace(LA.url('index.html'));</script>
+</head>
+<body>
+  <main class="calc">
+    <div class="screen" aria-live="polite">
+      <div class="expr" id="expr"></div>
+      <div class="value" id="value">0</div>
+    </div>
+    <div class="keys">
+      <button class="fn" data-k="AC">AC</button>
+      <button class="fn" data-k="±">±</button>
+      <button class="fn" data-k="%">%</button>
+      <button class="op" data-k="÷">÷</button>
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+      <button class="op" data-k="×">×</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+      <button class="op" data-k="−">−</button>
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+      <button class="op" data-k="+">+</button>
+      <button class="zero" data-k="0">0</button>
+      <button data-k=".">,</button>
+      <button class="op" data-k="=">=</button>
+    </div>
+  </main>
+
+  <script>
+    const exprEl = document.getElementById('expr');
+    const valueEl = document.getElementById('value');
+    const OPS = ['+', '−', '×', '÷'];
+    let tokens = [];      // e.g. ['19', '×', '58']
+    let current = '';     // number being typed
+    let justEvaluated = false;
+
+    const norm = (s) => String(s).replace(/\s+/g, '').replace(/[x*]/g, '×').replace(/\//g, '÷').replace(/-/g, '−').replace(/,/g, '.');
+
+    function fmt(n) {
+      if (!isFinite(n)) return 'Error';
+      const r = Math.round(n * 1e10) / 1e10;
+      return String(r).replace('.', ',');
+    }
+
+    function render() {
+      exprEl.textContent = tokens.join(' ').replace(/\./g, ',');
+      valueEl.textContent = (current || (tokens.length ? tokens[tokens.length - 1] : '0')).replace('.', ',');
+    }
+
+    // Safe evaluation: no eval(), just + − × ÷ with normal precedence.
+    function evaluate(list) {
+      const nums = [];
+      const ops = [];
+      const prec = { '+': 1, '−': 1, '×': 2, '÷': 2 };
+      const apply = () => {
+        const b = nums.pop(), a = nums.pop(), op = ops.pop();
+        nums.push(op === '+' ? a + b : op === '−' ? a - b : op === '×' ? a * b : a / b);
+      };
+      list.forEach((t) => {
+        if (OPS.includes(t)) {
+          while (ops.length && prec[ops[ops.length - 1]] >= prec[t]) apply();
+          ops.push(t);
+        } else nums.push(parseFloat(t));
+      });
+      while (ops.length) apply();
+      return nums[0];
+    }
+
+    function press(k) {
+      if (/^[0-9]$/.test(k) || k === '.') {
+        if (justEvaluated) { tokens = []; current = ''; justEvaluated = false; }
+        if (k === '.' && current.includes('.')) return;
+        current = (current === '0' && k !== '.') ? k : current + k;
+      } else if (OPS.includes(k)) {
+        justEvaluated = false;
+        if (current) { tokens.push(current); current = ''; }
+        if (!tokens.length) tokens.push('0');
+        if (OPS.includes(tokens[tokens.length - 1])) tokens[tokens.length - 1] = k; else tokens.push(k);
+      } else if (k === 'AC') {
+        tokens = []; current = ''; justEvaluated = false;
+      } else if (k === '±') {
+        if (current) current = current.startsWith('-') ? current.slice(1) : '-' + current;
+      } else if (k === '%') {
+        if (current) current = String(parseFloat(current) / 100);
+      } else if (k === '=') {
+        if (current) { tokens.push(current); current = ''; }
+        if (OPS.includes(tokens[tokens.length - 1])) tokens.pop();
+        if (!tokens.length) return;
+
+        // Secret sum unlocks the real app.
+        if (norm(tokens.join('')) === norm(LA.disguise().secret)) {
+          tokens = []; current = ''; render();
+          LA.enterApp();
+          return;
+        }
+        const result = evaluate(tokens);
+        exprEl.textContent = tokens.join(' ').replace(/\./g, ',') + ' =';
+        tokens = [String(result)];
+        valueEl.textContent = fmt(result);
+        justEvaluated = true;
+        return;
+      }
+      render();
+    }
+
+    document.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => press(b.dataset.k)));
+    document.addEventListener('keydown', (e) => {
+      const map = { '*': '×', 'x': '×', '/': '÷', '-': '−', '+': '+', 'Enter': '=', '=': '=', 'Escape': 'AC', ',': '.', '.': '.' };
+      const k = /^[0-9]$/.test(e.key) ? e.key : map[e.key];
+      if (k) { e.preventDefault(); press(k); }
+    });
+  </script>
+</body>
+</html>

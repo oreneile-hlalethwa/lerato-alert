@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Safety map · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    body { background: #E4E9E1; }
+    .wrap { max-width: 430px; margin: 0 auto; position: relative; min-height: 100vh; }
+    #map { height: 52vh; min-height: 320px; z-index: 0; }
+    .floating { position: absolute; top: 20px; left: 16px; right: 16px; display: flex; gap: 10px; align-items: center; z-index: 5; }
+    .floating .icon-btn, .floating .chip-title { box-shadow: 0 4px 14px rgba(0,0,0,.1); }
+    .chip-title { height: 48px; padding: 0 18px; border-radius: 24px; background: #fff; display: flex; align-items: center; font-weight: 800; }
+    .sheet-panel { position: relative; margin-top: -28px; background: #fff; border-radius: 28px 28px 0 0; padding: 12px 20px 32px; min-height: 50vh; z-index: 4; }
+    .handle { width: 40px; height: 5px; border-radius: 3px; background: var(--border); margin: 0 auto; }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 14px; }
+    .legend div { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; text-align: center; }
+    .legend span { width: 100%; height: 8px; border-radius: 4px; }
+    .chip--sm { height: 36px; padding: 0 14px; font-size: 13px; border: 0; background: var(--bg); }
+    .chip--sm.is-on { background: var(--ink); color: #fff; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+</head>
+<body>
+  <div class="wrap">
+    <div id="map" role="region" aria-label="Map of reported hotspots"></div>
+    <div class="floating">
+      <a class="icon-btn" href="index.html" aria-label="Back" data-icon="back"></a>
+      <div class="chip-title">Community safety map</div>
+    </div>
+
+    <section class="sheet-panel">
+      <div class="handle"></div>
+      <div class="chips" style="margin-top:14px" id="filters"></div>
+      <div class="legend" id="legend"></div>
+      <div class="section-head" style="margin:18px 0 6px">
+        <h2 style="font-size:18px">Hotspots near you</h2>
+        <span class="pill pill--amber hidden" id="demoTag">DEMO DATA</span>
+      </div>
+      <div id="list"></div>
+      <p class="small muted" style="margin-top:14px">Anonymised community reports. No names, no exact addresses.</p>
+    </section>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script>
+    const LEVELS = {
+      clear: { name: 'All clear', color: '#3FB37F', pillBg: '#E3F2E8', pillInk: '#1F6B3A' },
+      aware: { name: 'Stay aware', color: '#E9A93A', pillBg: '#FBF1DC', pillInk: '#7A4E00' },
+      heads: { name: 'Heads up', color: '#E07A2F', pillBg: '#FBE2CF', pillInk: '#1A1A1A' },
+      red: { name: 'Red zone', color: '#D93A3F', pillBg: '#B32A2F', pillInk: '#FFFFFF' },
+    };
+    const FILTERS = [
+      { id: 'all', label: 'All' }, { id: 'robbery', label: 'Robbery' }, { id: 'assault', label: 'Assault' },
+      { id: 'murder', label: 'Murder' }, { id: 'night', label: 'After dark' },
+    ];
+    let filter = 'all';
+    let center = { lat: -25.7479, lng: 28.2293 }; // Pretoria until we know where the user is
+    let spots = [];
+    let layer = null;
+
+    // If the map library can't load (offline), the list below still works.
+    const hasMap = !!window.L;
+    let map = null, me = null;
+    if (hasMap) {
+      map = L.map('map', { zoomControl: false, attributionControl: true }).setView([center.lat, center.lng], 14);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO',
+      }).addTo(map);
+      me = L.circleMarker([center.lat, center.lng], { radius: 9, color: '#fff', weight: 4, fillColor: '#2F5FC4', fillOpacity: 1 }).addTo(map);
+    } else {
+      document.getElementById('map').innerHTML = '<p class="muted" style="padding:110px 24px 0;text-align:center">Map unavailable offline. Hotspots are listed below.</p>';
+    }
+
+    document.getElementById('legend').innerHTML = Object.values(LEVELS).map((l) => '<div><span style="background:' + l.color + '"></span>' + l.name + '</div>').join('');
+
+    function renderFilters() {
+      document.getElementById('filters').innerHTML = FILTERS.map((f) =>
+        '<button class="chip chip--sm' + (f.id === filter ? ' is-on' : '') + '" aria-pressed="' + (f.id === filter) + '" data-f="' + f.id + '">' + f.label + '</button>').join('');
+      document.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { filter = b.dataset.f; renderFilters(); render(); }));
+    }
+
+    function km(a, b) {
+      const R = 6371, toRad = (x) => x * Math.PI / 180;
+      const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    // Demo hotspots placed around the user until the backend serves real, anonymised reports.
+    function demoSpots(c) {
+      const base = [
+        { dLat: 0.006, dLng: 0.004, level: 'red', category: 'robbery', night: true, label: 'Taxi rank', note: 'Robbery reports after 18:00' },
+        { dLat: -0.008, dLng: -0.006, level: 'heads', category: 'assault', night: true, label: 'Park footpath', note: 'Assault reports, poorly lit' },
+        { dLat: 0.011, dLng: -0.01, level: 'aware', category: 'robbery', night: false, label: 'Shopping centre parking', note: 'Occasional bag snatching' },
+        { dLat: -0.012, dLng: 0.011, level: 'red', category: 'murder', night: true, label: 'Open field near rail line', note: 'Serious violent incidents reported' },
+        { dLat: 0.002, dLng: -0.013, level: 'heads', category: 'robbery', night: false, label: 'Main road bridge', note: 'Phone theft at traffic lights' },
+        { dLat: -0.003, dLng: 0.008, level: 'clear', category: 'none', night: false, label: 'Community police forum patrol area', note: 'Regular patrols, few reports' },
+      ];
+      return base.map((s) => Object.assign({ lat: c.lat + s.dLat, lng: c.lng + s.dLng, radius: s.level === 'red' ? 260 : 200 }, s));
+    }
+
+    function render() {
+      if (layer) layer.remove();
+      if (hasMap) layer = L.layerGroup().addTo(map);
+      const shown = spots.filter((s) => filter === 'all' || (filter === 'night' ? s.night : s.category === filter))
+        .map((s) => Object.assign({ dist: km(center, s) }, s)).sort((a, b) => a.dist - b.dist);
+
+      if (hasMap) shown.forEach((s) => {
+        const lv = LEVELS[s.level];
+        L.circle([s.lat, s.lng], { radius: s.radius, color: lv.color, weight: 2, fillColor: lv.color, fillOpacity: .3 })
+          .bindPopup('<strong>' + LA.escapeHtml(s.label) + '</strong><br>' + lv.name + ' · ' + LA.escapeHtml(s.note)).addTo(layer);
+      });
+
+      document.getElementById('list').innerHTML = shown.length ? shown.map((s) => {
+        const lv = LEVELS[s.level];
+        return '<div class="row" style="cursor:pointer" data-lat="' + s.lat + '" data-lng="' + s.lng + '">' +
+          '<span class="dot" style="width:12px;height:12px;background:' + lv.color + '"></span>' +
+          '<div class="row__body"><div class="row__title">' + LA.escapeHtml(s.label) + '</div><div class="row__sub">' + s.dist.toFixed(1) + ' km · ' + LA.escapeHtml(s.note) + '</div></div>' +
+          '<span class="pill" style="background:' + lv.pillBg + ';color:' + lv.pillInk + '">' + lv.name + '</span></div>';
+      }).join('') : '<div class="list--empty" style="padding:12px 0">No hotspots for this filter nearby.</div>';
+      document.querySelectorAll('#list [data-lat]').forEach((r) => r.addEventListener('click', () => map && map.flyTo([+r.dataset.lat, +r.dataset.lng], 16)));
+    }
+
+    async function load() {
+      const data = await LA.apiOr('/hotspots/?lat=' + center.lat + '&lng=' + center.lng, {}, null);
+      const real = data && Array.isArray(data.results) && data.results.length;
+      spots = real ? data.results : demoSpots(center);
+      document.getElementById('demoTag').classList.toggle('hidden', !!real && !data.demo);
+      render();
+    }
+
+    renderFilters();
+    load();
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition((p) => {
+        center = { lat: p.coords.latitude, lng: p.coords.longitude };
+        if (map) { map.setView([center.lat, center.lng], 14); me.setLatLng([center.lat, center.lng]); }
+        load();
+      }, () => {}, { enableHighAccuracy: true, timeout: 10000 });
+    }
+  </script>
+</body>
+</html>

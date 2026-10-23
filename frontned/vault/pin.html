@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Vault PIN · Lerato Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .pin { min-height: 100vh; align-items: center; }
+    .lock { margin-top: 36px; width: 64px; height: 64px; border-radius: 20px; background: var(--coral); color: #fff; display: flex; align-items: center; justify-content: center; }
+    .pin h1 { margin: 18px 0 6px; font-size: 24px; font-weight: 800; text-align: center; }
+    .dots { margin-top: 28px; display: flex; gap: 18px; }
+    .dots span { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); transition: background .1s; }
+    .dots span.on { background: var(--ink); }
+    .dots.shake { animation: shake .4s; }
+    @keyframes shake { 20%, 60% { transform: translateX(-10px); } 40%, 80% { transform: translateX(10px); } }
+    .keypad { margin-top: auto; padding-top: 30px; display: grid; grid-template-columns: repeat(3, 80px); gap: 18px 28px; justify-content: center; }
+    .key { width: 80px; height: 80px; border-radius: 50%; border: 0; background: var(--card); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .key:active { background: #DAD8D4; }
+    .key b { font-size: 30px; font-weight: 500; line-height: 1; }
+    .key small { font-size: 10px; font-weight: 700; letter-spacing: .15em; height: 12px; }
+    .key--plain { background: transparent; font-size: 13px; font-weight: 700; color: var(--muted); }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>LA.guard();</script>
+</head>
+<body>
+  <main class="app app--plain pin">
+    <div class="topbar" style="align-self:stretch">
+      <a class="icon-btn" href="../alert/index.html" aria-label="Back" data-icon="back"></a>
+      <span class="pill pill--white" data-icon="lock" data-size="16" data-stroke="2.2">Private</span>
+    </div>
+
+    <div class="lock" data-icon="lock" data-size="30"></div>
+    <h1 id="heading">Enter Vault PIN</h1>
+    <p class="muted" style="margin:0;font-size:14px;text-align:center" id="sub">6 digits to open your evidence</p>
+    <div class="dots" id="dots" role="img" aria-label="0 of 6 digits entered">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <div class="keypad" id="keypad"></div>
+  </main>
+
+  <script>
+    const LETTERS = ['', 'ABC', 'DEF', 'GHI', 'JKL', 'MNO', 'PQRS', 'TUV', 'WXYZ'];
+    const keypad = document.getElementById('keypad');
+    let html = '';
+    for (let i = 1; i <= 9; i++) html += '<button class="key" data-d="' + i + '"><b>' + i + '</b><small>' + LETTERS[i - 1] + '</small></button>';
+    html += '<button class="key key--plain" id="forgot">Forgot?</button>';
+    html += '<button class="key" data-d="0"><b>0</b><small></small></button>';
+    html += '<button class="key key--plain" id="del" aria-label="Delete digit">' + LA.icon('back', 28) + '</button>';
+    keypad.innerHTML = html;
+
+    const dots = document.getElementById('dots');
+    const savedHash = LA.store.get('vault_pin', null);
+    let mode = savedHash ? 'enter' : 'create';   // create → confirm → done
+    let entry = '';
+    let firstPin = '';
+    let fails = Number(LA.store.get('vault_fails', 0));
+    let lockedUntil = Number(LA.store.get('vault_locked_until', 0));
+
+    function setText() {
+      const h = document.getElementById('heading'), s = document.getElementById('sub');
+      if (mode === 'create') { h.textContent = 'Create a Vault PIN'; s.textContent = 'Choose 6 digits only you know'; }
+      else if (mode === 'confirm') { h.textContent = 'Confirm your PIN'; s.textContent = 'Type the same 6 digits again'; }
+      else { h.textContent = 'Enter Vault PIN'; s.textContent = '6 digits to open your evidence'; }
+    }
+    function renderDots() {
+      dots.querySelectorAll('span').forEach((d, i) => d.classList.toggle('on', i < entry.length));
+      dots.setAttribute('aria-label', entry.length + ' of 6 digits entered');
+    }
+    function wrong(msg) {
+      dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
+      entry = ''; renderDots();
+      if (msg) LA.toast(msg);
+    }
+
+    async function hash(pin) {
+      const text = 'lerato:' + ((LA.user() || {}).email || '') + ':' + pin;
+      if (window.crypto && crypto.subtle) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+        return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+      }
+      let h = 0; for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0; return 'x' + h;
+    }
+
+    function open() {
+      try { sessionStorage.setItem('la_vault', '1'); } catch (e) {}
+      location.replace('index.html');
+    }
+
+    async function complete() {
+      if (mode === 'create') { firstPin = entry; entry = ''; mode = 'confirm'; setText(); renderDots(); return; }
+      if (mode === 'confirm') {
+        if (entry !== firstPin) { mode = 'create'; firstPin = ''; setText(); return wrong('PINs did not match. Try again.'); }
+        LA.store.set('vault_pin', await hash(entry));
+        LA.toast('Vault PIN set');
+        return open();
+      }
+      if (Date.now() < lockedUntil) return wrong('Too many tries. Wait a moment.');
+      if (await hash(entry) === savedHash) {
+        LA.store.set('vault_fails', 0);
+        return open();
+      }
+      fails += 1;
+      LA.store.set('vault_fails', fails);
+      if (fails >= 5) {
+        lockedUntil = Date.now() + 30000;
+        LA.store.set('vault_locked_until', lockedUntil);
+        LA.store.set('vault_fails', 0); fails = 0;
+        return wrong('Too many tries. Locked for 30 seconds.');
+      }
+      wrong('Wrong PIN');
+    }
+
+    function press(d) {
+      if (entry.length >= 6) return;
+      entry += d;
+      renderDots();
+      if (entry.length === 6) setTimeout(complete, 120);
+    }
+
+    keypad.querySelectorAll('[data-d]').forEach((b) => b.addEventListener('click', () => press(b.dataset.d)));
+    document.getElementById('del').addEventListener('click', () => { entry = entry.slice(0, -1); renderDots(); });
+    document.getElementById('forgot').addEventListener('click', () => LA.toast('For your safety, PIN reset will be done with an email code (coming soon).'));
+    document.addEventListener('keydown', (e) => {
+      if (/^[0-9]$/.test(e.key)) press(e.key);
+      else if (e.key === 'Backspace') { entry = entry.slice(0, -1); renderDots(); }
+    });
+
+    setText();
+  </script>
+</body>
+</html>
