@@ -1,6 +1,3 @@
-/* Lerato Alert – hands-free safe session.
-   Listens for the user's safe word, distress phrases or a scream, gives a
-   5-second silent cancel window, then sends live location to trusted contacts. */
 (function () {
   const $ = (id) => document.getElementById(id);
   const user = LA.user() || {};
@@ -84,7 +81,6 @@
     recognition.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') LA.toast('Please allow microphone access.');
     };
-    // Browsers stop listening after a pause: restart while the session is on.
     recognition.onend = () => {
       if (active && !triggered) { try { recognition.start(); } catch (e) {} }
     };
@@ -199,7 +195,6 @@
     });
   }
 
-  // Record 60 seconds of audio into the vault as evidence.
   function recordEvidence() {
     if (!stream || !window.MediaRecorder) return;
     try {
@@ -218,7 +213,6 @@
   async function sendAlert(reason) {
     recordEvidence();
     const position = await currentPosition();
-    // At home, only security companies and organisations are alerted (safer than family the abuser knows).
     let list = contacts();
     if (mode === 'home') {
       const outside = list.filter((c) => c.type !== 'kin');
@@ -247,6 +241,22 @@
 
   window.addEventListener('pagehide', () => { if (active) stopSession(); });
 
+  function homeScreenTip() {
+    const standalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+    if (standalone || LA.store.get('home_tip_seen', false)) return;
+    const names = { calculator: 'Calculator', messages: 'Chats', browser: 'Search' };
+    const tip = document.createElement('section');
+    tip.className = 'card card--soft';
+    tip.style.cssText = 'margin-bottom:16px;display:flex;gap:12px;align-items:flex-start';
+    tip.innerHTML = '<div class="grow"><div style="font-weight:700;font-size:15px">Add to your Home Screen now</div>' +
+      '<div class="small" style="margin-top:4px;line-height:1.5">Tap Share, then <strong>Add to Home Screen</strong>. It will appear as <strong>' +
+      names[LA.disguise().type] + '</strong>, so nobody can tell it is Lerato Alert. If you change your disguise later, remove it and add it again.</div></div>' +
+      '<button class="icon-btn" style="width:36px;height:36px;background:#fff" aria-label="Dismiss">' + LA.icon('check', 16, 3) + '</button>';
+    tip.querySelector('button').addEventListener('click', () => { LA.store.set('home_tip_seen', true); tip.remove(); });
+    document.getElementById('greeting').insertAdjacentElement('afterend', tip);
+  }
+
   renderModes();
   renderStatus();
+  homeScreenTip();
 })();

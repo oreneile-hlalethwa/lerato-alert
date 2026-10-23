@@ -10,8 +10,8 @@
   <style>
     body { background: #FFFFFF; }
     .splash { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; }
-    .splash img { width: 96px; height: 96px; }
-    .splash h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+    .splash h1 { margin: 0; font-size: 44px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+    .splash .tag { font-size: 12px; font-weight: 700; letter-spacing: .32em; color: var(--coral); margin-top: -8px; }
     .splash p { margin: -10px 0 0; color: var(--muted); font-size: 14px; }
     .bar { width: 200px; height: 6px; border-radius: 3px; background: #F1E3DE; overflow: hidden; margin-top: 10px; }
     .bar div { height: 100%; width: 0; background: var(--coral); border-radius: 3px; animation: fill 2s linear forwards; }
@@ -21,8 +21,8 @@
 </head>
 <body>
   <main class="splash" aria-busy="true">
-    <img src="../assets/img/logo.svg" alt="">
-    <h1>Lerato Alert</h1>
+    <h1>Lerato</h1>
+    <div class="tag">ALERT</div>
     <p>Love shouldn't hurt.</p>
     <div class="bar" role="progressbar" aria-label="Loading"><div></div></div>
   </main>

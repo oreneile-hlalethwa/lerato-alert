@@ -1,12 +1,7 @@
-/* Lerato Alert – shared core: storage, access control, nav, API helper.
-   Every page loads this file first. */
 (function () {
-  // Served by Django (local :8000 or Render) → same origin. Opened from a separate
-  // static server (e.g. python -m http.server 5500) → talk to Django on :8000.
   const SAME_ORIGIN = location.protocol.startsWith('http') && location.port !== '5500';
   const API_BASE = window.LA_API_BASE || (SAME_ORIGIN ? location.origin + '/api' : 'http://127.0.0.1:8000/api');
 
-  // Root folder of the frontend, worked out from this script's own location.
   const ROOT = new URL('../../', document.currentScript.src).href;
   const url = (p) => ROOT + p;
 
@@ -31,7 +26,26 @@
   const disguise = () => Object.assign({}, DEFAULT_DISGUISE, store.get('disguise', {}));
   const disguisePage = () => url('disguise/' + disguise().type + '.html');
 
-  // Only allow redirects inside this app (no "//evil.com" or "https:" tricks).
+  const HOME_ICON = {
+    calculator: { title: 'Calculator', icon: 'icon-calculator' },
+    messages: { title: 'Chats', icon: 'icon-messages' },
+    browser: { title: 'Search', icon: 'icon-browser' },
+  };
+  function setHead(selector, tag, attrs) {
+    let el = document.head.querySelector(selector);
+    if (!el) { el = document.createElement(tag); document.head.appendChild(el); }
+    Object.keys(attrs).forEach((k) => el.setAttribute(k, attrs[k]));
+  }
+  function applyHomeIcon() {
+    if (!document.head) return;
+    const h = user() ? (HOME_ICON[disguise().type] || HOME_ICON.calculator) : { title: 'Lerato Alert', icon: 'icon-lerato' };
+    setHead('link[rel="apple-touch-icon"]', 'link', { rel: 'apple-touch-icon', href: url('assets/img/' + h.icon + '-180.png') });
+    setHead('link[rel="icon"]', 'link', { rel: 'icon', type: 'image/png', href: url('assets/img/' + h.icon + '-192.png') });
+    setHead('meta[name="apple-mobile-web-app-title"]', 'meta', { name: 'apple-mobile-web-app-title', content: h.title });
+    setHead('meta[name="apple-mobile-web-app-capable"]', 'meta', { name: 'apple-mobile-web-app-capable', content: 'yes' });
+  }
+  applyHomeIcon();
+
   function safeNext(next, fallback) {
     if (!next || /^[a-z]+:|^\/\//i.test(next) || next.includes('..')) return fallback;
     return next.replace(/^\/+/, '');
@@ -42,7 +56,6 @@
     location.replace(url('onboarding/loading.html?next=alert/index.html'));
   }
 
-  // Put on every protected page: sends people back to the disguise if locked.
   function guard() {
     if (!user()) { location.replace(url('index.html')); return false; }
     if (!session.isUnlocked()) { location.replace(disguisePage()); return false; }
@@ -50,7 +63,6 @@
     return true;
   }
 
-  // People who registered while the server was offline get their server token now.
   let tokenPromise = null;
   function ensureToken() {
     const u = user();
@@ -90,7 +102,6 @@
       clearTimeout(timer);
     }
   }
-  // Try the backend; if it's not up yet, use the demo value so the UI still works.
   async function apiOr(path, options, demo) {
     try { return await api(path, options); }
     catch (e) { return typeof demo === 'function' ? demo() : demo; }
