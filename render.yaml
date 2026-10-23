@@ -5,6 +5,7 @@ services:
     name: lerato-alert
     runtime: python
     plan: free
+    region: frankfurt
     buildCommand: >-
       pip install -r backend/requirements.txt &&
       python backend/manage.py collectstatic --noinput &&
