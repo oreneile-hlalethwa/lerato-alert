@@ -72,7 +72,7 @@
 
     function renderMap() {
       const near = pos ? '&ll=' + pos.lat + ',' + pos.lng + '&z=13' : '+South+Africa&z=6';
-      document.getElementById('map').src = 'https://www.google.com/maps?q=' + encodeURIComponent(cat.query) + near + '&output=embed';
+      document.getElementById('map').src = 'https://www.google.com/maps?q=' + encodeURIComponent(cat.query) + near + '&t=h&output=embed';
     }
 
     function row(title, sub, href, iconName, label) {
@@ -85,7 +85,6 @@
     async function loadNearby() {
       const el = document.getElementById('nearby');
       el.innerHTML = '<div class="list--empty">Searching…</div>';
-      // Backend (Google Places) returns verified centres with distance. Until then, open a Maps search near the user.
       const data = pos ? await LA.apiOr('/services/nearby/?type=' + cat.id + '&lat=' + pos.lat + '&lng=' + pos.lng, {}, null) : null;
       if (data && data.results && data.results.length) {
         el.innerHTML = data.results.slice(0, 4).map((s) =>

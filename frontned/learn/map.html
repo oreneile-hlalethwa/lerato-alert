@@ -60,18 +60,20 @@
       { id: 'murder', label: 'Murder' }, { id: 'night', label: 'After dark' },
     ];
     let filter = 'all';
-    let center = { lat: -25.7479, lng: 28.2293 }; // Pretoria until we know where the user is
+    let center = { lat: -25.7479, lng: 28.2293 };
     let spots = [];
     let layer = null;
 
-    // If the map library can't load (offline), the list below still works.
     const hasMap = !!window.L;
     let map = null, me = null;
     if (hasMap) {
       map = L.map('map', { zoomControl: false, attributionControl: true }).setView([center.lat, center.lng], 14);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO',
+      const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
+      L.tileLayer(esri + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics',
       }).addTo(map);
+      L.tileLayer(esri + 'Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(map);
+      L.tileLayer(esri + 'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(map);
       me = L.circleMarker([center.lat, center.lng], { radius: 9, color: '#fff', weight: 4, fillColor: '#2F5FC4', fillOpacity: 1 }).addTo(map);
     } else {
       document.getElementById('map').innerHTML = '<p class="muted" style="padding:110px 24px 0;text-align:center">Map unavailable offline. Hotspots are listed below.</p>';
@@ -92,7 +94,6 @@
       return 2 * R * Math.asin(Math.sqrt(h));
     }
 
-    // Demo hotspots placed around the user until the backend serves real, anonymised reports.
     function demoSpots(c) {
       const base = [
         { dLat: 0.006, dLng: 0.004, level: 'red', category: 'robbery', night: true, label: 'Taxi rank', note: 'Robbery reports after 18:00' },
@@ -113,7 +114,7 @@
 
       if (hasMap) shown.forEach((s) => {
         const lv = LEVELS[s.level];
-        L.circle([s.lat, s.lng], { radius: s.radius, color: lv.color, weight: 2, fillColor: lv.color, fillOpacity: .3 })
+        L.circle([s.lat, s.lng], { radius: s.radius, color: '#FFFFFF', weight: 3, fillColor: lv.color, fillOpacity: .45 })
           .bindPopup('<strong>' + LA.escapeHtml(s.label) + '</strong><br>' + lv.name + ' · ' + LA.escapeHtml(s.note)).addTo(layer);
       });
 

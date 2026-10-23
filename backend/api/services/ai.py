@@ -1,9 +1,6 @@
-"""Claude (Anthropic API) for the referral chat, the help-a-friend chat and lessons.
-
-The API key only ever lives here on the server. Each call forces a tool so the
-reply comes back as clean JSON the frontend can render.
-"""
+import copy
 import hashlib
+import json
 import logging
 
 import anthropic
@@ -14,7 +11,7 @@ log = logging.getLogger('api')
 
 
 class AIUnavailable(Exception):
-    """No key, or the API failed. The frontend then uses its built-in answers."""
+    pass
 
 
 SA_RESOURCES = """Only use these South African numbers. Never invent phone numbers, statistics, laws or organisations:
@@ -39,8 +36,25 @@ def client():
     if not settings.ANTHROPIC_API_KEY:
         raise AIUnavailable('ANTHROPIC_API_KEY is not set')
     if _client is None:
-        _client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=25.0, max_retries=1)
+        _client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=45.0, max_retries=1)
     return _client
+
+
+def _strict(schema):
+    schema = copy.deepcopy(schema)
+
+    def walk(node):
+        if isinstance(node, dict):
+            if node.get('type') == 'object':
+                node['additionalProperties'] = False
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(schema)
+    return schema
 
 
 def _call_tool(system, messages, tool, max_tokens):
@@ -50,20 +64,21 @@ def _call_tool(system, messages, tool, max_tokens):
             max_tokens=max_tokens,
             system=system,
             messages=messages,
-            tools=[tool],
-            tool_choice={'type': 'tool', 'name': tool['name']},
+            output_config={'format': {'type': 'json_schema', 'schema': _strict(tool['input_schema'])}},
         )
     except anthropic.APIError as exc:
         log.warning('Anthropic API error: %s', exc)
         raise AIUnavailable(str(exc)) from exc
-    for block in res.content:
-        if block.type == 'tool_use':
-            return block.input
-    raise AIUnavailable('No tool output')
+    if res.stop_reason in ('refusal', 'max_tokens'):
+        raise AIUnavailable(f'Stopped early: {res.stop_reason}')
+    text = ''.join(b.text for b in res.content if b.type == 'text').strip()
+    try:
+        return json.loads(text)
+    except ValueError as exc:
+        raise AIUnavailable('Reply was not valid JSON') from exc
 
 
 def clean_history(messages):
-    """Make the chat history valid for the API: alternating roles, starting and ending with the user."""
     out = []
     for m in messages[-16:]:
         role = m.get('role')
@@ -75,7 +90,6 @@ def clean_history(messages):
         else:
             out.append({'role': role, 'content': text})
     if out and out[0]['role'] == 'assistant':
-        # The app opens with a greeting from the assistant; give it a user turn to answer.
         out.insert(0, {'role': 'user', 'content': '(I opened the chat.)'})
     if not out or out[-1]['role'] != 'user':
         raise ValueError('The last message must be from the user.')
@@ -86,7 +100,6 @@ def _options(value, limit, length=60):
     return [str(o).strip()[:length] for o in (value or []) if str(o).strip()][:limit]
 
 
-# ---------- Get referred ----------
 REFERRAL_TOOL = {
     'name': 'respond',
     'description': 'Send the next chat message.',
@@ -138,7 +151,6 @@ def referral(messages, turn, max_turns=3):
     return data
 
 
-# ---------- Help a friend ----------
 FRIEND_TOOL = {
     'name': 'respond',
     'description': 'Send the next chat message.',
@@ -169,7 +181,6 @@ def friend(messages):
     return {'reply': reply, 'options': _options(out.get('options'), 2, 80)}
 
 
-# ---------- Lessons ----------
 LESSON_TOOL = {
     'name': 'lesson',
     'description': 'Return a short mobile lesson.',
@@ -221,5 +232,5 @@ def lesson(topic):
         'points': points,
         'takeaway': str(out.get('takeaway', ''))[:300],
     }
-    cache.set(key, data, 3600)  # an hour: fresh enough, and saves cost while judges click around
+    cache.set(key, data, 3600)
     return data

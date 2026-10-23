@@ -1,14 +1,11 @@
-/* Lerato Alert – reusable AI chat (Get referred, Help a friend).
-   Talks to the Django backend, which calls the Anthropic API with the secret key.
-   If the backend isn't reachable, it falls back to a scripted helper. */
 (function () {
   function create(cfg) {
     const chat = document.getElementById('chat');
     const quick = document.getElementById('quick');
     const form = document.getElementById('composer');
     const input = document.getElementById('input');
-    const history = [];   // [{ role: 'user'|'assistant', content }]
-    const answers = [];   // user messages only
+    const history = [];
+    const answers = [];
     let aiAvailable = true;
     let busy = false;
 
@@ -59,14 +56,14 @@
     async function getReply(text) {
       if (aiAvailable) {
         try {
-          const res = await LA.api(cfg.endpoint, { body: { messages: history, turn: answers.length, max_turns: cfg.maxTurns || null }, timeout: 20000 });
+          const res = await LA.api(cfg.endpoint, { body: { messages: history, turn: answers.length, max_turns: cfg.maxTurns || null }, timeout: 45000 });
           if (res && res.reply) return res;
           throw new Error('empty');
         } catch (e) {
           aiAvailable = false;
         }
       }
-      await LA.wait(700 + Math.random() * 600); // feels like someone typing
+      await LA.wait(700 + Math.random() * 600);
       return cfg.scripted(answers.slice(), text);
     }
 
