@@ -72,6 +72,7 @@
       const w = wordInput.value.trim();
       if (w && w.length < 3) return LA.toast('Use at least 3 letters.');
       LA.store.set('safeword', w);
+      LA.syncSettings();
       LA.toast(w ? 'Safe word saved' : 'Safe word removed');
     });
 
@@ -112,7 +113,8 @@
       ).join('');
       el.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
         const all = LA.store.get('contacts', []);
-        all.splice(Number(b.dataset.remove), 1);
+        const [gone] = all.splice(Number(b.dataset.remove), 1);
+        if (gone && gone.id) LA.apiOr('/contacts/' + gone.id + '/', { method: 'DELETE' }, null);
         LA.store.set('contacts', all);
         render();
       }));
@@ -134,7 +136,12 @@
       const all = LA.store.get('contacts', []);
       all.push(contact);
       LA.store.set('contacts', all);
-      LA.apiOr('/contacts/', { body: Object.assign({ user_id: (LA.user() || {}).id }, contact) }, null);
+      const saved = await LA.apiOr('/contacts/', { body: contact }, null);
+      if (saved && saved.id) {
+        const now = LA.store.get('contacts', []);
+        const match = now.find((c) => !c.id && c.name === contact.name && c.value === contact.value);
+        if (match) { match.id = saved.id; LA.store.set('contacts', now); }
+      }
       form.reset();
       render();
       LA.toast(name + ' added');

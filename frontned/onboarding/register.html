@@ -33,6 +33,8 @@
       </div>
       <label class="field">Email <input class="input" name="email" type="email" autocomplete="email" required></label>
       <label class="field">Phone number <input class="input" name="phone" type="tel" autocomplete="tel" required></label>
+      <label class="field">Password <input class="input" name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label class="field">Confirm password <input class="input" name="password2" type="password" autocomplete="new-password" minlength="8" required></label>
       <p id="error" class="field-error hidden" role="alert"></p>
 
       <div class="tip stack" style="gap:10px">
@@ -49,6 +51,7 @@
       </label>
 
       <button class="btn" type="submit" id="submit">Create account</button>
+      <p class="small muted" style="text-align:center;margin:4px 0 0">Already have an account? <a href="login.html" style="color:var(--coral);font-weight:700">Sign in</a></p>
     </form>
   </main>
 
@@ -70,6 +73,8 @@
       if (!name || !surname) return showError('Please enter your name and surname.');
       if (!/^\S+@\S+\.\S+$/.test(email)) return showError('Please enter a valid email address.');
       if (!/^(\+27|0)\d{9}$/.test(phone)) return showError('Please enter a valid South African number.');
+      if ((data.password || '').length < 8) return showError('Your password needs at least 8 characters.');
+      if (data.password !== data.password2) return showError('The passwords don\'t match.');
       const secret = (data.secret || '').replace(/\s+/g, '').replace(/[x*]/gi, '×').replace(/\//g, '÷').replace(/-/g, '−');
       if (!/^\d+([,.]\d+)?[+−×÷]\d+([,.]\d+)?$/.test(secret)) return showError('Choose a secret sum like 47×12.');
       if (secret === '19×58') return showError('Please choose your own secret sum, not the example.');
@@ -80,9 +85,19 @@
       btn.textContent = 'Creating account…';
 
       const profile = { name, surname, email, phone };
-      const saved = await LA.apiOr('/users/register/', { body: profile }, { id: 'local-' + Date.now() });
-      LA.store.set('user', Object.assign(profile, { id: saved.id, token: saved.token || null }));
-      LA.store.set('disguise', { type: 'calculator', secret });
+      let saved;
+      try {
+        saved = await LA.api('/users/register/', { body: Object.assign({ password: data.password }, profile), timeout: 60000 });
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Create account';
+        return showError(LA.errorText(err, 'We couldn\'t create your account. Check your connection and try again.'));
+      }
+      LA.store.set('user', Object.assign(profile, { id: saved.id, token: saved.token }));
+      LA.store.set('contacts', []);
+      LA.store.remove('vault_pin');
+      await LA.setSecret('calculator', secret);
+      await LA.syncSettings();
 
       LA.session.unlock();
       location.replace(LA.url('alert/index.html'));

@@ -58,8 +58,6 @@
     let current = '';     // number being typed
     let justEvaluated = false;
 
-    const norm = (s) => String(s).replace(/\s+/g, '').replace(/[x*]/g, '×').replace(/\//g, '÷').replace(/-/g, '−').replace(/,/g, '.');
-
     function fmt(n) {
       if (!isFinite(n)) return 'Error';
       const r = Math.round(n * 1e10) / 1e10;
@@ -110,11 +108,12 @@
         if (OPS.includes(tokens[tokens.length - 1])) tokens.pop();
         if (!tokens.length) return;
 
-        if (norm(tokens.join('')) === norm(LA.disguise().secret)) {
+        const typed = tokens.join('');
+        LA.checkSecret(typed).then((ok) => {
+          if (!ok) return;
           tokens = []; current = ''; render();
           LA.enterApp();
-          return;
-        }
+        });
         const result = evaluate(tokens);
         exprEl.textContent = tokens.join(' ').replace(/\./g, ',') + ' =';
         tokens = [String(result)];

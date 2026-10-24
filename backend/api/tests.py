@@ -14,7 +14,7 @@ class ApiTests(TestCase):
     def setUp(self):
         cache.clear()
         self.c = APIClient()
-        res = self.c.post('/api/users/register/', {'name': 'Thandi', 'surname': 'Mokoena', 'email': 't@example.com', 'phone': '071 234 5678'}, format='json')
+        res = self.c.post('/api/users/register/', {'name': 'Thandi', 'surname': 'Mokoena', 'email': 't@example.com', 'phone': '071 234 5678', 'password': 'safe-pass-1'}, format='json')
         self.assertEqual(res.status_code, 201)
         self.token = res.json()['token']
 
@@ -22,8 +22,44 @@ class ApiTests(TestCase):
         return {'HTTP_X_LERATO_TOKEN': self.token}
 
     def test_register_validates_phone(self):
-        res = self.c.post('/api/users/register/', {'name': 'A', 'surname': 'B', 'email': 'a@b.co', 'phone': '123'}, format='json')
+        res = self.c.post('/api/users/register/', {'name': 'A', 'surname': 'B', 'email': 'a@b.co', 'phone': '123', 'password': 'safe-pass-1'}, format='json')
         self.assertEqual(res.status_code, 400)
+
+    def test_password_is_hashed_and_login_restores_account(self):
+        from .models import Member
+        m = Member.objects.get(email='t@example.com')
+        self.assertNotEqual(m.password, 'safe-pass-1')
+        self.c.post('/api/contacts/', {'name': 'Mom', 'channel': 'email', 'value': 'mom@example.com', 'type': 'kin'}, format='json', **self.auth())
+        bad = self.c.post('/api/users/login/', {'email': 'T@example.com', 'password': 'wrong-pass'}, format='json')
+        self.assertEqual(bad.status_code, 403)
+        ok = self.c.post('/api/users/login/', {'email': 'T@example.com', 'password': 'safe-pass-1'}, format='json')
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(ok.json()['token'], self.token)
+        self.assertEqual(ok.json()['contacts'][0]['name'], 'Mom')
+
+    def test_register_rejects_duplicate_email_and_short_password(self):
+        dup = self.c.post('/api/users/register/', {'name': 'A', 'surname': 'B', 'email': 'T@example.com', 'phone': '0712345670', 'password': 'safe-pass-1'}, format='json')
+        self.assertEqual(dup.status_code, 400)
+        short = self.c.post('/api/users/register/', {'name': 'A', 'surname': 'B', 'email': 'n@example.com', 'phone': '0712345670', 'password': 'short'}, format='json')
+        self.assertEqual(short.status_code, 400)
+
+    def test_settings_sync_and_restore_on_login(self):
+        lock = {'salt': 'ab' * 16, 'hash': 'cd' * 32, 'iter': 150000}
+        body = {'safe_word': 'pineapple', 'disguise_type': 'messages', 'secret_lock': lock, 'vault_pin': lock}
+        self.assertEqual(self.c.put('/api/users/settings/', body, format='json').status_code, 403)
+        self.assertEqual(self.c.put('/api/users/settings/', body, format='json', **self.auth()).status_code, 200)
+        plain = dict(body, vault_pin='123456')
+        self.assertEqual(self.c.put('/api/users/settings/', plain, format='json', **self.auth()).status_code, 400)
+        s = self.c.post('/api/users/login/', {'email': 't@example.com', 'password': 'safe-pass-1'}, format='json').json()['settings']
+        self.assertEqual(s['safe_word'], 'pineapple')
+        self.assertEqual(s['disguise_type'], 'messages')
+        self.assertEqual(s['vault_pin'], lock)
+
+    def test_contact_delete(self):
+        cid = self.c.post('/api/contacts/', {'name': 'Mom', 'channel': 'email', 'value': 'mom@example.com', 'type': 'kin'}, format='json', **self.auth()).json()['id']
+        self.assertEqual(self.c.delete(f'/api/contacts/{cid}/', **self.auth()).status_code, 204)
+        login = self.c.post('/api/users/login/', {'email': 't@example.com', 'password': 'safe-pass-1'}, format='json').json()
+        self.assertEqual(login['contacts'], [])
 
     def test_contacts_need_token(self):
         body = {'name': 'Mom', 'channel': 'email', 'value': 'mom@example.com', 'type': 'kin'}
@@ -118,7 +154,7 @@ class ApiTests(TestCase):
         self.assertEqual(res.json()['title'], 'Online safety')
 
     def test_fund_flow(self):
-        apply = {'needs': ['Transport'], 'amount': 400, 'phone': '0712345678'}
+        apply = {'needs': ['Transport'], 'amount': 400, 'phone': '0712345678', 'password': 'safe-pass-1'}
         self.assertEqual(self.c.post('/api/fund/apply/', apply, format='json', **self.auth()).status_code, 201)
         self.assertEqual(self.c.post('/api/fund/apply/', apply, format='json', **self.auth()).status_code, 400)
         res = self.c.post('/api/fund/donate/', {'amount': 100, 'last4': '0002', 'display_name': 'Thandi M'}, format='json')
@@ -146,7 +182,7 @@ class ApiTests(TestCase):
 class VaultTests(TestCase):
     def setUp(self):
         self.c = APIClient()
-        res = self.c.post('/api/users/register/', {'name': 'T', 'surname': 'M', 'email': 't@example.com', 'phone': '0712345678'}, format='json')
+        res = self.c.post('/api/users/register/', {'name': 'T', 'surname': 'M', 'email': 't@example.com', 'phone': '0712345678', 'password': 'safe-pass-1'}, format='json')
         self.h = {'HTTP_X_LERATO_TOKEN': res.json()['token']}
 
     def test_upload_list_delete(self):
@@ -185,6 +221,6 @@ class VaultTests(TestCase):
     def test_other_member_cannot_delete(self):
         item = models.VaultItem.objects.create(member=models.Member.objects.get(), client_id='a', kind='note',
                                                title='n', text='t', captured='2026-10-23T20:00:00Z')
-        other = self.c.post('/api/users/register/', {'name': 'X', 'surname': 'Y', 'email': 'x@example.com', 'phone': '0712345679'}, format='json').json()['token']
+        other = self.c.post('/api/users/register/', {'name': 'X', 'surname': 'Y', 'email': 'x@example.com', 'phone': '0712345679', 'password': 'safe-pass-1'}, format='json').json()['token']
         self.c.delete(f'/api/vault/{item.id}/', HTTP_X_LERATO_TOKEN=other)
         self.assertTrue(models.VaultItem.objects.filter(pk=item.pk).exists())

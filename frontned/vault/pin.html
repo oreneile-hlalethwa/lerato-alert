@@ -95,12 +95,14 @@
       if (mode === 'create') { firstPin = entry; entry = ''; mode = 'confirm'; setText(); renderDots(); return; }
       if (mode === 'confirm') {
         if (entry !== firstPin) { mode = 'create'; firstPin = ''; setText(); return wrong('PINs did not match. Try again.'); }
-        LA.store.set('vault_pin', await hash(entry));
+        LA.store.set('vault_pin', await LA.secure.make(entry));
+        LA.syncSettings();
         LA.toast('Vault PIN set');
         return open();
       }
       if (Date.now() < lockedUntil) return wrong('Too many tries. Wait a moment.');
-      if (await hash(entry) === savedHash) {
+      const ok = typeof savedHash === 'string' ? (await hash(entry)) === savedHash : await LA.secure.check(entry, savedHash);
+      if (ok) {
         LA.store.set('vault_fails', 0);
         return open();
       }

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sign in · Lerato Alert</title>
+  <link rel="apple-touch-icon" href="../assets/img/icon-lerato-180.png">
+  <meta name="apple-mobile-web-app-title" content="Lerato Alert">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    body { background: #FFFFFF; }
+    .brand { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 24px 0 26px; text-align: center; }
+    .brand h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+    .brand p { margin: 0; color: var(--muted); font-size: 15px; }
+    .tip { background: var(--coral-soft); border-radius: 18px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
+  </style>
+  <script src="../assets/js/app.js"></script>
+  <script>if (LA.user()) location.replace(LA.disguisePage());</script>
+</head>
+<body>
+  <main class="app app--plain">
+    <div class="brand">
+      <h1>Welcome back</h1>
+      <p>Sign in to restore your account, contacts and settings.</p>
+    </div>
+
+    <form id="form" class="stack" novalidate>
+      <label class="field">Email <input class="input" name="email" type="email" autocomplete="email" required></label>
+      <label class="field">Password <input class="input" name="password" type="password" autocomplete="current-password" required></label>
+
+      <p id="error" class="field-error hidden" role="alert"></p>
+      <button class="btn" type="submit" id="submit">Sign in</button>
+      <p class="small muted" style="text-align:center;margin:4px 0 0">New here? <a href="register.html" style="color:var(--coral);font-weight:700">Create an account</a></p>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById('form');
+    const errorEl = document.getElementById('error');
+    const btn = document.getElementById('submit');
+
+    function showError(msg) { errorEl.textContent = msg; errorEl.classList.remove('hidden'); }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.classList.add('hidden');
+      const data = Object.fromEntries(new FormData(form));
+      const email = (data.email || '').trim();
+      if (!/^\S+@\S+\.\S+$/.test(email)) return showError('Please enter a valid email address.');
+      if (!data.password) return showError('Please enter your password.');
+
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+      let res;
+      try {
+        res = await LA.api('/users/login/', { body: { email, password: data.password }, timeout: 60000 });
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Sign in';
+        const fallback = err && err.status ? 'Wrong email or password.' : 'We couldn\'t reach Lerato. Check your connection and try again.';
+        return showError(err && err.status === 429 ? 'Too many tries. Please wait a minute.' : LA.errorText(err, fallback));
+      }
+
+      LA.store.set('user', { id: res.id, token: res.token, name: res.name, surname: res.surname, email: res.email, phone: res.phone });
+      LA.store.set('contacts', res.contacts || []);
+      const hasSecret = LA.restoreSettings(res.settings);
+      LA.session.unlock();
+      // Accounts made before settings synced have no secret yet: set one now.
+      location.replace(LA.url(hasSecret ? 'alert/index.html' : 'disguise/settings.html'));
+    });
+  </script>
+</body>
+</html>

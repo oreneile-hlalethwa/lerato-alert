@@ -39,11 +39,11 @@
     </div>
   </main>
   <script>
-    document.getElementById('form').addEventListener('submit', (e) => {
+    document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const q = document.getElementById('q').value.trim();
       if (!q) return;
-      if (q.toLowerCase() === String(LA.disguise().secret).trim().toLowerCase()) { LA.enterApp(); return; }
+      if (await LA.checkSecret(q)) { LA.enterApp(); return; }
       location.href = 'https://www.google.com/search?q=' + encodeURIComponent(q);
     });
   </script>

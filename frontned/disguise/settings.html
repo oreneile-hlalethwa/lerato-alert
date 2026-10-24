@@ -67,22 +67,33 @@
     };
     const current = LA.disguise();
     form.elements.type.value = current.type;
-    secret.value = current.secret;
+    secret.value = '';
+    secret.placeholder = 'Type a new secret to change it';
 
     function updateCopy(type, resetValue) {
       document.getElementById('secretLabel').textContent = COPY[type][0];
       document.getElementById('secretHint').textContent = COPY[type][1];
-      if (resetValue) secret.value = type === current.type ? current.secret : DEFAULTS[type];
+      if (resetValue) secret.value = DEFAULTS[type];
     }
     updateCopy(current.type);
     form.querySelectorAll('input[name=type]').forEach((r) => r.addEventListener('change', () => updateCopy(r.value, true)));
 
-    form.addEventListener('submit', (e) => {
+    secret.required = false;
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const err = document.getElementById('error');
       const type = form.elements.type.value;
       const value = secret.value.trim();
       err.classList.add('hidden');
+      if (!value) {
+        // Keeping the same secret only works if the kind of secret (sum vs word) hasn't changed.
+        if (type !== current.type || !current.lock) {
+          err.textContent = type === 'calculator' ? 'Choose a secret sum for this disguise.' : 'Choose a secret word for this disguise.';
+          err.classList.remove('hidden'); return;
+        }
+        LA.toast('No changes');
+        return;
+      }
       if (type === 'calculator' && !/^\d+([,.]\d+)?\s*[+\-−×x*÷/]\s*\d+([,.]\d+)?$/.test(value)) {
         err.textContent = 'Use a simple sum like 47×12.'; err.classList.remove('hidden'); return;
       }
@@ -92,7 +103,8 @@
       if (type !== 'calculator' && !/^\S{3,}$/.test(value)) {
         err.textContent = 'Use one word with at least 3 letters.'; err.classList.remove('hidden'); return;
       }
-      LA.store.set('disguise', { type, secret: value });
+      await LA.setSecret(type, value);
+      LA.syncSettings();
       LA.toast('Disguise saved');
       setTimeout(() => location.href = '../alert/index.html', 800);
     });

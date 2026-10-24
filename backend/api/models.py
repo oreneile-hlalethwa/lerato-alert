@@ -20,6 +20,9 @@ class Member(models.Model):
     email = models.EmailField()
     phone = models.CharField(max_length=20)
     token = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
+    password = models.CharField(max_length=128, blank=True)  # Django hash, never the plain password
+    # Safe word, disguise type, and salted PBKDF2 hashes of the secret sum and vault PIN (never the plain values).
+    settings = models.JSONField(default=dict, blank=True)
     created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

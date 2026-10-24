@@ -1,5 +1,7 @@
 import logging
 
+from django.contrib.auth.hashers import check_password, make_password
+
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Sum
@@ -58,8 +60,46 @@ class Register(APIView):
 
     def post(self, request):
         data = valid(s.RegisterSerializer, request.data)
+        if models.Member.objects.filter(email__iexact=data['email']).exists():
+            raise ValidationError({'email': 'An account with this email already exists. Please sign in.'})
+        data['password'] = make_password(data['password'])
         member = models.Member.objects.create(**data)
         return Response({'id': str(member.id), 'token': member.token}, status=status.HTTP_201_CREATED)
+
+
+class Login(APIView):
+    throttle_scope = 'login'
+
+    def post(self, request):
+        data = valid(s.LoginSerializer, request.data)
+        member = models.Member.objects.filter(email__iexact=data['email']).exclude(password='').order_by('-created').first()
+        # Same message either way, so nobody can test which emails have accounts.
+        if not member or not check_password(data['password'], member.password):
+            raise AuthenticationFailed('Wrong email or password.')
+        contacts = [{'id': c.id, 'name': c.name, 'channel': c.channel, 'value': c.value, 'type': c.type}
+                    for c in member.contacts.order_by('created')]
+        return Response({
+            'id': str(member.id), 'token': member.token,
+            'name': member.name, 'surname': member.surname, 'email': member.email, 'phone': member.phone,
+            'contacts': contacts,
+            'settings': member.settings or {},
+        })
+
+
+class Settings(APIView):
+    throttle_scope = 'writes'
+
+    def get(self, request):
+        return Response(member_from(request).settings or {})
+
+    def put(self, request):
+        member = member_from(request)
+        data = valid(s.SettingsSerializer, request.data)
+        merged = dict(member.settings or {})
+        merged.update({k: (dict(v) if isinstance(v, dict) else v) for k, v in data.items()})
+        member.settings = merged
+        member.save(update_fields=['settings'])
+        return Response(merged)
 
 
 class Contacts(APIView):
@@ -74,6 +114,15 @@ class Contacts(APIView):
             raise ValidationError('You can save up to 20 contacts.')
         contact = member.contacts.create(**data)
         return Response({'id': contact.id}, status=status.HTTP_201_CREATED)
+
+
+class ContactDetail(APIView):
+    throttle_scope = 'writes'
+
+    def delete(self, request, pk):
+        member = member_from(request)
+        member.contacts.filter(pk=pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ---------- Emergency alerts ----------

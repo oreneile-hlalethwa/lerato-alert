@@ -17,9 +17,15 @@ class RegisterSerializer(serializers.Serializer):
     surname = serializers.CharField(max_length=60, trim_whitespace=True)
     email = serializers.EmailField(max_length=254)
     phone = serializers.CharField(max_length=20)
+    password = serializers.CharField(min_length=8, max_length=128, trim_whitespace=False, write_only=True)
 
     def validate_phone(self, v):
         return clean_phone(v)
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(max_length=254)
+    password = serializers.CharField(max_length=128, trim_whitespace=False)
 
 
 class ContactSerializer(serializers.Serializer):
@@ -106,3 +112,17 @@ class VaultItemSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=80)
     text = serializers.CharField(max_length=10000, required=False, allow_blank=True)
     created = serializers.DateTimeField()
+
+
+class LockSerializer(serializers.Serializer):
+    """A salted PBKDF2 hash made on the phone. The plain secret never reaches the server."""
+    salt = serializers.RegexField(r'^[0-9a-f]{16,64}$')
+    hash = serializers.RegexField(r'^[0-9a-f]{64}$')
+    iter = serializers.IntegerField(min_value=100000, max_value=1000000)
+
+
+class SettingsSerializer(serializers.Serializer):
+    safe_word = serializers.CharField(max_length=40, allow_blank=True, required=False)
+    disguise_type = serializers.ChoiceField(choices=['calculator', 'messages', 'browser'], required=False)
+    secret_lock = LockSerializer(required=False)
+    vault_pin = LockSerializer(required=False)

@@ -21,7 +21,7 @@
   };
 
   /* ---------- user + disguise ---------- */
-  const DEFAULT_DISGUISE = { type: 'calculator', secret: '19×58' };
+  const DEFAULT_DISGUISE = { type: 'calculator' };
   const user = () => store.get('user', null);
   const disguise = () => Object.assign({}, DEFAULT_DISGUISE, store.get('disguise', {}));
   const disguisePage = () => url('disguise/' + disguise().type + '.html');
@@ -46,6 +46,63 @@
   }
   applyHomeIcon();
 
+  /* ---------- secrets: salted PBKDF2, checked on the phone, synced as hashes only ---------- */
+  const ITER = 150000;
+  const hex = (buf) => Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  async function pbkdf2(value, salt, iter) {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(value), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(salt), iterations: iter }, key, 256);
+    return hex(bits);
+  }
+  const secure = {
+    async make(value) {
+      const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+      return { salt, iter: ITER, hash: await pbkdf2(value, salt, ITER) };
+    },
+    async check(value, lock) {
+      if (!lock || !lock.salt || !lock.hash) return false;
+      try { return (await pbkdf2(value, lock.salt, lock.iter || ITER)) === lock.hash; } catch (e) { return false; }
+    },
+  };
+  // One spelling per secret: "47 x 12" and "47×12" are the same sum; words ignore case.
+  function normSecret(type, value) {
+    const v = String(value || '').trim();
+    if (type !== 'calculator') return v.toLowerCase();
+    return v.replace(/\s+/g, '').replace(/[x*]/gi, '×').replace(/\//g, '÷').replace(/-/g, '−').replace(/,/g, '.');
+  }
+  async function setSecret(type, value) {
+    const lock = await secure.make(normSecret(type, value));
+    store.set('disguise', { type, lock });
+    return lock;
+  }
+  async function checkSecret(value) {
+    const d = disguise();
+    const v = normSecret(d.type, value);
+    if (d.lock) return secure.check(v, d.lock);
+    if (d.secret) return v === normSecret(d.type, d.secret);   // older installs kept it in plain text
+    return false;
+  }
+
+  // Safe word, disguise and the two hashes follow the account to a new phone.
+  async function syncSettings() {
+    if (!(user() || {}).token) return;
+    const d = disguise();
+    const body = { safe_word: store.get('safeword', '') || '', disguise_type: d.type };
+    if (d.lock) body.secret_lock = d.lock;
+    const pin = store.get('vault_pin', null);
+    if (pin && typeof pin === 'object') body.vault_pin = pin;
+    try { await api('/users/settings/', { method: 'PUT', body }); } catch (e) {}
+  }
+  function restoreSettings(s) {
+    s = s || {};
+    store.set('safeword', s.safe_word || '');
+    const d = { type: s.disguise_type || 'calculator' };
+    if (s.secret_lock) d.lock = s.secret_lock;
+    store.set('disguise', d);
+    if (s.vault_pin) store.set('vault_pin', s.vault_pin); else store.remove('vault_pin');
+    return !!s.secret_lock;
+  }
+
   function safeNext(next, fallback) {
     if (!next || /^[a-z]+:|^\/\//i.test(next) || next.includes('..')) return fallback;
     return next.replace(/^\/+/, '');
@@ -63,18 +120,8 @@
     return true;
   }
 
-  let tokenPromise = null;
-  function ensureToken() {
-    const u = user();
-    if (!u || u.token || tokenPromise) return tokenPromise;
-    tokenPromise = api('/users/register/', { body: { name: u.name, surname: u.surname, email: u.email, phone: u.phone } })
-      .then((res) => {
-        if (res && res.token) store.set('user', Object.assign({}, user(), { id: res.id, token: res.token }));
-      })
-      .catch(() => {})
-      .finally(() => { tokenPromise = null; });
-    return tokenPromise;
-  }
+  // Accounts need a password now, so a missing token means: sign in again.
+  function ensureToken() { return Promise.resolve((user() || {}).token || null); }
 
   function quickExit() {
     session.lock();
@@ -96,11 +143,29 @@
         body: opts.body ? JSON.stringify(opts.body) : undefined,
         signal: ctrl.signal,
       });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const err = new Error('HTTP ' + res.status);
+        err.status = res.status;
+        err.data = data;
+        throw err;
+      }
+      if (res.status === 204) return null;
       return await res.json();
     } finally {
       clearTimeout(timer);
     }
+  }
+  // First readable message from a DRF error body.
+  function errorText(e, fallback) {
+    const d = e && e.data;
+    if (!d) return fallback;
+    if (typeof d.detail === 'string') return d.detail;
+    for (const v of Object.values(d)) {
+      if (typeof v === 'string') return v;
+      if (Array.isArray(v) && typeof v[0] === 'string') return v[0];
+    }
+    return fallback;
   }
   async function apiOr(path, options, demo) {
     try { return await api(path, options); }
@@ -178,5 +243,5 @@
     if (tab) renderNav(tab);
   });
 
-  window.LA = { API_BASE, url, store, session, user, disguise, disguisePage, safeNext, enterApp, guard, ensureToken, quickExit, api, apiOr, toast, escapeHtml, wait, icon };
+  window.LA = { API_BASE, url, store, session, user, disguise, disguisePage, safeNext, enterApp, guard, ensureToken, quickExit, api, apiOr, errorText, secure, normSecret, setSecret, checkSecret, syncSettings, restoreSettings, toast, escapeHtml, wait, icon };
 })();

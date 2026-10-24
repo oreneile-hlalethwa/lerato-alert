@@ -47,13 +47,13 @@
     <button aria-label="Send"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-2-7z"/></svg></button>
   </form>
   <script>
-    document.getElementById('form').addEventListener('submit', (e) => {
+    document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const input = document.getElementById('msg');
       const word = input.value.trim().toLowerCase();
       input.value = '';
       if (!word) return;
-      if (word === String(LA.disguise().secret).trim().toLowerCase()) { LA.enterApp(); return; }
+      if (await LA.checkSecret(word)) { LA.enterApp(); return; }
       const sent = document.getElementById('sent');
       sent.hidden = false;
       setTimeout(() => { sent.hidden = true; }, 1500);
