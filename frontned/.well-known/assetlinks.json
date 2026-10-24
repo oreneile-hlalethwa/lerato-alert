@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.tshireletso.leratoalert",
+        "sha256_cert_fingerprints": ["34:F1:C0:AA:4D:40:B0:D0:2E:CB:57:09:CC:C5:93:D5:46:0D:DC:00:09:FE:E1:44:A7:11:BF:74:C4:EF:02:05"]
+      }
+    }]
