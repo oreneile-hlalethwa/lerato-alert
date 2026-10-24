@@ -11,16 +11,23 @@
   <link rel="stylesheet" href="../assets/css/style.css">
   <style>
     body { background: #FFFFFF; }
-    .brand { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 24px 0 26px; text-align: center; }
+    .brand { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 22px 0 22px; text-align: center; }
     .brand h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
     .brand p { margin: 0; color: var(--muted); font-size: 15px; }
     .tip { background: var(--coral-soft); border-radius: 18px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin-top: 18px; background: var(--coral-soft); border-radius: 16px; }
+    .tabs a { display: flex; align-items: center; justify-content: center; height: 46px; border-radius: 12px; font-weight: 700; font-size: 15px; color: var(--coral); text-decoration: none; }
+    .tabs a[aria-current="page"] { background: var(--coral); color: #fff; box-shadow: 0 4px 12px rgba(194, 80, 47, .25); }
   </style>
   <script src="../assets/js/app.js"></script>
   <script>if (LA.user()) location.replace(LA.disguisePage());</script>
 </head>
 <body>
   <main class="app app--plain">
+    <nav class="tabs" aria-label="Account">
+      <a href="register.html" aria-current="page">Sign up</a>
+      <a href="login.html">Sign in</a>
+    </nav>
     <div class="brand">
       <h1>Welcome to Lerato Alert</h1>
       <p>Tell us a little about you to get started.</p>
@@ -51,7 +58,6 @@
       </label>
 
       <button class="btn" type="submit" id="submit">Create account</button>
-      <p class="small muted" style="text-align:center;margin:4px 0 0">Already have an account? <a href="login.html" style="color:var(--coral);font-weight:700">Sign in</a></p>
     </form>
   </main>
 
