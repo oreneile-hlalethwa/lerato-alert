@@ -17,6 +17,7 @@
       location.replace(LA.disguisePage());
     }
   </script>
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});</script>
 </head>
 <body style="background:#161616"></body>
 </html>

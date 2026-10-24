@@ -1,20 +1,20 @@
 {
+  "id": "/",
   "name": "Calculator",
   "short_name": "Calculator",
-  "start_url": "index.html",
+  "description": "Lerato Alert: a hands-free safety app for South African women, disguised as an everyday calculator.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
+  "lang": "en-ZA",
+  "dir": "ltr",
+  "categories": ["lifestyle", "utilities"],
   "background_color": "#161616",
   "theme_color": "#161616",
   "icons": [
-    {
-      "src": "assets/img/icon-calculator-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "assets/img/icon-calculator-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "/assets/img/icon-calculator-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/img/icon-calculator-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/img/icon-calculator-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

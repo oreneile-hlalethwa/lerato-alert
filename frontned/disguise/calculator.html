@@ -26,6 +26,7 @@
   </style>
   <script src="../assets/js/app.js"></script>
   <script>if (!LA.user()) location.replace(LA.url('index.html'));</script>
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});</script>
 </head>
 <body>
   <main class="calc">
