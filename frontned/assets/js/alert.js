@@ -249,8 +249,8 @@
     tip.className = 'card card--soft';
     tip.style.cssText = 'margin-bottom:16px;display:flex;gap:12px;align-items:flex-start';
     tip.innerHTML = '<div class="grow"><div style="font-weight:700;font-size:15px">Add to your Home Screen now</div>' +
-      '<div class="small" style="margin-top:4px;line-height:1.5">Tap Share, then <strong>Add to Home Screen</strong>. It will appear as <strong>' +
-      names[LA.disguise().type] + '</strong>, so nobody can tell it is Lerato Alert. If you change your disguise later, remove it and add it again.</div></div>' +
+      '<div class="small" style="margin-top:4px;line-height:1.5">Tap the exit button at the top right to open your <strong>' +
+      names[LA.disguise().type] + '</strong> screen. Then tap Share and <strong>Add to Home Screen</strong>. Nobody will be able to tell it is Lerato Alert. If you change your disguise later, remove it and add it again.</div></div>' +
       '<button class="icon-btn" style="width:36px;height:36px;background:#fff" aria-label="Dismiss">' + LA.icon('check', 16, 3) + '</button>';
     tip.querySelector('button').addEventListener('click', () => { LA.store.set('home_tip_seen', true); tip.remove(); });
     document.getElementById('greeting').insertAdjacentElement('afterend', tip);

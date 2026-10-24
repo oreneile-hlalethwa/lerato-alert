@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Calculator</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="assets/img/calc-icon.svg">
+  <link rel="icon" type="image/png" href="assets/img/icon-lerato-192.png">
+  <link rel="apple-touch-icon" href="assets/img/icon-lerato-180.png">
+  <meta name="apple-mobile-web-app-title" content="Lerato Alert">
   <meta name="theme-color" content="#161616">
   <script src="assets/js/app.js"></script>
   <script>
-    // Entry point: first-time users see the loading screen then register.
-    // Registered users always land on their disguise app first.
     if (!LA.user()) {
       location.replace(LA.url('onboarding/loading.html?next=onboarding/register.html'));
     } else {

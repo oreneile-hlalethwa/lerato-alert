@@ -6,7 +6,9 @@
   <title>Search</title>
   <meta name="theme-color" content="#F6F7F9">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Internet">
+  <meta name="apple-mobile-web-app-title" content="Search">
+  <link rel="apple-touch-icon" href="../assets/img/icon-browser-180.png">
+  <link rel="icon" type="image/png" href="../assets/img/icon-browser-192.png">
   <style>
     * { box-sizing: border-box; }
     html, body { margin: 0; background: #F6F7F9; color: #111; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
@@ -42,7 +44,6 @@
       const q = document.getElementById('q').value.trim();
       if (!q) return;
       if (q.toLowerCase() === String(LA.disguise().secret).trim().toLowerCase()) { LA.enterApp(); return; }
-      // Anything else behaves like a real search, keeping the disguise believable.
       location.href = 'https://www.google.com/search?q=' + encodeURIComponent(q);
     });
   </script>

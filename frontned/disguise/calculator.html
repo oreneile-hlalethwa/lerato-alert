@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Calculator</title>
   <link rel="manifest" href="../manifest.json">
-  <link rel="icon" href="../assets/img/calc-icon.svg">
+  <link rel="icon" type="image/png" href="../assets/img/icon-calculator-192.png">
+  <link rel="apple-touch-icon" href="../assets/img/icon-calculator-180.png">
   <meta name="theme-color" content="#161616">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Calculator">
@@ -70,7 +71,6 @@
       valueEl.textContent = (current || (tokens.length ? tokens[tokens.length - 1] : '0')).replace('.', ',');
     }
 
-    // Safe evaluation: no eval(), just + − × ÷ with normal precedence.
     function evaluate(list) {
       const nums = [];
       const ops = [];
@@ -110,7 +110,6 @@
         if (OPS.includes(tokens[tokens.length - 1])) tokens.pop();
         if (!tokens.length) return;
 
-        // Secret sum unlocks the real app.
         if (norm(tokens.join('')) === norm(LA.disguise().secret)) {
           tokens = []; current = ''; render();
           LA.enterApp();

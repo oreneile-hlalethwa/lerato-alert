@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Create your account · Lerato Alert</title>
+  <link rel="apple-touch-icon" href="../assets/img/icon-lerato-180.png">
+  <meta name="apple-mobile-web-app-title" content="Lerato Alert">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/style.css">
   <style>
     body { background: #FFFFFF; }
     .brand { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 24px 0 26px; text-align: center; }
-    .brand img { width: 72px; height: 72px; }
     .brand h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
     .brand p { margin: 0; color: var(--muted); font-size: 15px; }
     .tip { background: var(--coral-soft); border-radius: 18px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
@@ -21,7 +22,6 @@
 <body>
   <main class="app app--plain">
     <div class="brand">
-      <img src="../assets/img/logo.svg" alt="">
       <h1>Welcome to Lerato Alert</h1>
       <p>Tell us a little about you to get started.</p>
     </div>
@@ -32,7 +32,7 @@
         <label class="field">Surname <input class="input" name="surname" autocomplete="family-name" required></label>
       </div>
       <label class="field">Email <input class="input" name="email" type="email" autocomplete="email" required></label>
-      <label class="field">Phone number <input class="input" name="phone" type="tel" autocomplete="tel" placeholder="e.g. 071 234 5678" required></label>
+      <label class="field">Phone number <input class="input" name="phone" type="tel" autocomplete="tel" required></label>
       <p id="error" class="field-error hidden" role="alert"></p>
 
       <div class="tip stack" style="gap:10px">
@@ -84,7 +84,6 @@
       LA.store.set('user', Object.assign(profile, { id: saved.id, token: saved.token || null }));
       LA.store.set('disguise', { type: 'calculator', secret });
 
-      // First time: straight into the app.
       LA.session.unlock();
       location.replace(LA.url('alert/index.html'));
     });
