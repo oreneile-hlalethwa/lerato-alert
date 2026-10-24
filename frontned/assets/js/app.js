@@ -123,6 +123,22 @@
   // Accounts need a password now, so a missing token means: sign in again.
   function ensureToken() { return Promise.resolve((user() || {}).token || null); }
 
+  // Wipe everything Lerato keeps on this phone. The account stays on the server for signing in again.
+  async function signOut() {
+    try {
+      Object.keys(localStorage).filter((k) => k.startsWith('la_')).forEach((k) => localStorage.removeItem(k));
+    } catch (e) {}
+    try { sessionStorage.clear(); } catch (e) {}
+    await new Promise((done) => {
+      try {
+        const req = indexedDB.deleteDatabase('lerato-vault');
+        req.onsuccess = req.onerror = req.onblocked = () => done();
+      } catch (e) { done(); }
+      setTimeout(done, 1500);
+    });
+    location.replace(url('onboarding/login.html'));
+  }
+
   function quickExit() {
     session.lock();
     location.replace(disguisePage());
@@ -243,5 +259,5 @@
     if (tab) renderNav(tab);
   });
 
-  window.LA = { API_BASE, url, store, session, user, disguise, disguisePage, safeNext, enterApp, guard, ensureToken, quickExit, api, apiOr, errorText, secure, normSecret, setSecret, checkSecret, syncSettings, restoreSettings, toast, escapeHtml, wait, icon };
+  window.LA = { API_BASE, url, store, session, user, disguise, disguisePage, safeNext, enterApp, guard, ensureToken, quickExit, signOut, api, apiOr, errorText, secure, normSecret, setSecret, checkSecret, syncSettings, restoreSettings, toast, escapeHtml, wait, icon };
 })();

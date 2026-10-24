@@ -14,13 +14,14 @@
   </style>
   <script src="../assets/js/app.js"></script>
   <script>LA.guard();</script>
+  <script src="../assets/js/vault-db.js"></script>
 </head>
 <body>
   <main class="app app--plain">
     <div class="topbar">
       <div class="topbar__left">
         <a class="icon-btn" href="../alert/index.html" aria-label="Back" data-icon="back"></a>
-        <h1 class="title">Disguise</h1>
+        <h1 class="title">Disguise &amp; account</h1>
       </div>
     </div>
     <p class="muted" style="margin:14px 0 16px;font-size:15px">Choose what Lerato Alert looks like on your phone. Quick exit always jumps here.</p>
@@ -55,6 +56,15 @@
 
       <button class="btn" type="submit">Save disguise</button>
     </form>
+
+    <div class="card stack" style="margin-top:22px">
+      <div>
+        <div class="row__title">Account</div>
+        <div class="small muted" id="who"></div>
+      </div>
+      <p class="small muted" style="margin:0">Signing out removes Lerato Alert from this phone, including the vault. Your account, contacts, settings and backed-up evidence stay safe, so you can sign in again on any phone.</p>
+      <button class="btn btn--outline" type="button" id="signout">Sign out</button>
+    </div>
   </main>
   <script>
     const form = document.getElementById('form');
@@ -107,6 +117,25 @@
       LA.syncSettings();
       LA.toast('Disguise saved');
       setTimeout(() => location.href = '../alert/index.html', 800);
+    });
+
+    const me = LA.user() || {};
+    document.getElementById('who').textContent = 'Signed in as ' + (me.email || '');
+    document.getElementById('signout').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = 'Checking backups…';
+      let pending = 0;
+      try {
+        await VaultDB.syncAll();
+        pending = (await VaultDB.all()).filter((it) => !it.remoteId).length;
+      } catch (err) {}
+      const msg = pending
+        ? pending + ' vault item(s) have not backed up yet and will be lost. Sign out anyway?'
+        : 'Sign out of Lerato Alert on this phone?';
+      if (!confirm(msg)) { btn.disabled = false; btn.textContent = 'Sign out'; return; }
+      btn.textContent = 'Signing out…';
+      LA.signOut();
     });
   </script>
 </body>
